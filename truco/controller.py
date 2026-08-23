@@ -17,13 +17,14 @@ from .cards import Card
 class VisibleState:
     """Estado visible para un controlador al momento de decidir.
 
-    Nunca incluye las cartas del rival (solo lo que ya jugó).
+    Nunca incluye las cartas de los rivales (solo lo que ya jugaron).
     """
     hand_cards: List[Card]
     played_by_me: List[Card]
-    played_by_opponent: List[Card]
-    my_score: int
-    opponent_score: int
+    played_by_teammate: Optional[List[Card]]
+    played_by_opponents: List[List[Card]]
+    my_team_score: int
+    opponent_team_score: int
     pending_call: Optional[str]  # p.ej. "truco", "envido", None
     call_history: List[str] = field(default_factory=list)
 
@@ -105,12 +106,16 @@ class LLMController(PlayerController):
         self.client = client
 
     def _prompt(self, state: VisibleState, question: str) -> str:
+        teammate_played = f"Jugadas compañero: {[str(c) for c in state.played_by_teammate]}" if state.played_by_teammate is not None else ""
+        opponents_played = "\n".join([f"Rival {i}: {[str(c) for c in played]}" for i, played in enumerate(state.played_by_opponents)])
+
         return (
             f"Sos {self.name}, jugando al Truco Argentino.\n"
             f"Tu mano: {[str(c) for c in state.hand_cards]}\n"
             f"Jugadas propias: {[str(c) for c in state.played_by_me]}\n"
-            f"Jugadas rival: {[str(c) for c in state.played_by_opponent]}\n"
-            f"Marcador: vos {state.my_score} - rival {state.opponent_score}\n"
+            f"{teammate_played}\n"
+            f"Jugadas rivales:\n{opponents_played}\n"
+            f"Marcador: tu equipo {state.my_team_score} - rival {state.opponent_team_score}\n"
             f"Canto pendiente: {state.pending_call}\n"
             f"{question}"
         )

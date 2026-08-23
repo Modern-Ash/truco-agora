@@ -1,11 +1,10 @@
-# Spec: Motor de Truco Argentino (1v1)
+# Spec: Motor de Truco Argentino (1v1 y 2v2)
 
 Fuente: https://trucogame.com/pages/reglamento-de-truco-argentino
 
 ## Alcance
-Motor + CLI jugable para una partida 1v1 (mano a mano) de Truco Argentino.
-Flor y señas quedan documentadas pero **fuera de alcance de implementación** en
-esta primera iteración (se listan como trabajo futuro).
+Motor + CLI jugable para partidas de Truco Argentino en modalidades 1v1 (mano a mano) y 2v2 (parejas).
+Flor y señas quedan documentadas pero **fuera de alcance de implementación** en esta iteración.
 
 ## Mazo
 - Español de 40 cartas (sin 8, 9, comodines).
@@ -34,7 +33,8 @@ esta primera iteración (se listan como trabajo futuro).
 
 ## Estructura de la mano
 - Cada mano tiene 3 rondas ("bazas"); gana quien gane 2 de 3.
-- El "mano" es el jugador a la derecha del dealer; inicia el reparto y el juego.
+- **Turnos (1v1):** El "mano" inicia el reparto y el juego.
+- **Turnos (2v2):** Se juega en sentido horario. El "mano" inicia, seguido por el rival 1, el compañero del mano, y el rival 2.
 - Empate en una baza = "parda"; se resuelve según reglas de parda estándar
   (si hay parda en la primera baza, gana la mano quien gane la segunda o,
   si también empata, gana el mano; en la práctica: la parda cede la definición
@@ -43,6 +43,7 @@ esta primera iteración (se listan como trabajo futuro).
 ## Fase de Envido
 - Ocurre solo en la primera ronda, antes de jugar la primera carta de esa ronda
   (o antes de que ambos jugadores hayan jugado su primera carta).
+- **En 2v2:** El envido es una decisión de equipo. El puntaje se calcula como el mejor envido individual entre los integrantes de la pareja.
 - Cantos: `Envido` (2), `Real Envido` (3), `Falta Envido` (puntos que le faltan
   al equipo puntero para llegar a 30).
 - Respuestas válidas: `Quiero`, `No Quiero` (1 punto para quien cantó),
@@ -53,6 +54,7 @@ esta primera iteración (se listan como trabajo futuro).
 ## Fase de Truco
 - Sin cantos, la mano vale 1 punto (puntaje base).
 - Cantos y escalada: `Truco` → `Retruco` → `Vale Cuatro`.
+- **En 2v2:** El truco es una decisión de equipo.
 - Puntos si se acepta (`Quiero`): Truco = 2, Retruco = 3, Vale Cuatro = 4.
 - Puntos si se rechaza (`No Quiero`): se otorgan los del nivel anterior
   (rechazar Truco = 1, rechazar Retruco = 2, rechazar Vale Cuatro = 3).
@@ -86,8 +88,7 @@ Regla real, más matizada que "gana 2 de 3 rondas":
 
 ## Fuera de alcance (documentado, no implementado)
 - Flor / Contra Flor / Contra Flor al Resto.
-- Señas (comunicación no verbal entre compañeros) — no aplica a 1v1.
-- Modalidades 2v2 y 3v3.
+- Señas (comunicación no verbal entre compañeros).
 
 ## Jugadores: humano o agente
 - El motor es agnóstico a quién decide las jugadas: cada `Player` delega en
@@ -105,7 +106,7 @@ Regla real, más matizada que "gana 2 de 3 rondas":
   ilegales.
 
 ## Componentes a construir
-1. **Modelo de dominio**: `Card`, `Deck`, `Player`, `Hand`, `Match`.
+1. **Modelo de dominio**: `Card`, `Deck`, `Player`, `Team`, `Match`.
 2. **Motor de reglas**: ranking truco/envido, resolución de bazas y pardas,
    escalado de cantos (envido y truco), cálculo de puntaje, irse al mazo,
    condición de fin de partida.
@@ -113,8 +114,8 @@ Regla real, más matizada que "gana 2 de 3 rondas":
    (CLI), `LLMController` (agente LLM vía `LLMClient` inyectable).
 4. **CLI**: partida interactiva configurable por jugador (humano o agente LLM),
    en la misma terminal.
-5. **Tests**: cobertura de ranking, cálculo de envido, escalado de truco,
-   pardas, condición de fin de partida, y decisiones de `LLMController` con
+5. **Tests**: cobertura de ranking, cálculo de envido, escalado, pardas,
+   condición de fin de partida, y decisiones de `LLMController` con
    un `LLMClient` mock/determinístico.
 
 ## Criterios de aceptación (trazados a work item `truco-spec-engine`)
@@ -123,7 +124,7 @@ Regla real, más matizada que "gana 2 de 3 rondas":
   jugador humano/agente.
 - `motor-reglas`: implementación cubre reparto, envido, 3 bazas, parda,
   irse al mazo.
-- `cli-jugable`: partida completa 1v1 jugable por CLI, con cada jugador
+- `cli-jugable`: partida completa jugable por CLI, con cada jugador
   configurable como humano o agente LLM.
 - `tests-reglas`: suite automatizada sobre las reglas clave y sobre el
   controlador LLM (con mock).

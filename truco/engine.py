@@ -11,10 +11,8 @@ from .controller import PlayerController, VisibleState
 from .envido import best_envido
 
 TRUCO_ESCALATION = ["truco", "retruco", "vale_cuatro"]
-# Puntos si se acepta ("quiero") cada canto. Si se rechaza, se otorgan los
-# puntos del nivel anterior (1 para "no quiero" a truco, ya que la mano sin
-# cantos vale 1 punto base). Validado contra bureaudejuegos.com y wikipedia.
 TRUCO_POINTS = {"truco": 2, "retruco": 3, "vale_cuatro": 4}
+ENVIDO_ESCALATION = ["envido", "real_envido", "falta_envido"]
 ENVIDO_POINTS = {"envido": 2, "real_envido": 3}
 
 
@@ -23,47 +21,62 @@ class IllegalMove(Exception):
 
 
 @dataclass
+class Team:
+    name: str
+    players: List[Player] = field(default_factory=list)
+    score: int = 0
+
+
+@dataclass
 class Player:
     name: str
     controller: PlayerController
-    score: int = 0
+    team: Optional[Team] = None
     hand: List[Card] = field(default_factory=list)
     played: List[Card] = field(default_factory=list)
 
-    def visible_state(self, opponent: "Player", pending_call: Optional[str],
+    def visible_state(self, match: "Match", pending_call: Optional[str],
                        history: List[str]) -> VisibleState:
+        teammate = next((p for p in self.team.players if p is not self), None) if self.team else None
+        opponents = [p for p in match.players if p.team != self.team] if self.team else []
+
         return VisibleState(
             hand_cards=list(self.hand),
             played_by_me=list(self.played),
-            played_by_opponent=list(opponent.played),
-            my_score=self.score,
-            opponent_score=opponent.score,
+            played_by_teammate=list(teammate.played) if teammate else None,
+            played_by_opponents=[list(p.played) for p in opponents],
+            my_team_score=self.team.score if self.team else 0,
+            opponent_team_score=match.players[0].team.score if (self.team and match.players[0].team != self.team) else 0,
             pending_call=pending_call,
             call_history=list(history),
         )
 
 
 class Match:
-    """Partida 1v1 hasta `target_score` (15 o 30 según spec.md)."""
+    """Partida hasta `target_score` (15 o 30 según spec.md). Soporta 1v1 y 2v2."""
 
-    def __init__(self, player_a: Player, player_b: Player,
+    def __init__(self, teams: List[Team],
                  target_score: int = 15, rng: Optional[random.Random] = None):
         if target_score not in (15, 30):
             raise ValueError("target_score debe ser 15 o 30 (spec.md)")
-        self.players = [player_a, player_b]
+        self.teams = teams
+        self.players = []
+        for t in teams:
+            self.players.extend(t.players)
+
         self.target_score = target_score
         self.rng = rng or random.Random()
         self.mano_index = 0  # índice del jugador "mano" en self.players
         self.hand_log: List[str] = []
 
     @property
-    def winner(self) -> Optional[Player]:
-        for p in self.players:
-            if p.score >= self.target_score:
-                return p
+    def winner(self) -> Optional[Team]:
+        for t in self.teams:
+            if t.score >= self.target_score:
+                return t
         return None
 
-    def play_match(self) -> Player:
+    def play_match(self) -> Team:
         while self.winner is None:
             self.play_hand()
         return self.winner
@@ -77,158 +90,153 @@ class Match:
 
     def play_hand(self) -> None:
         self._deal()
-        mano = self.players[self.mano_index]
-        pie = self.players[1 - self.mano_index]
-        order = [mano, pie]
+        order = list(self.players)
+        order = order[self.mano_index:] + order[:self.mano_index]
 
         truco_points = 1
-        truco_level = None  # None | "truco" | "retruco" | "vale_cuatro"
+        truco_level = None
         folded_by: Optional[Player] = None
         envido_resolved = False
-
-        # Resultado de cada ronda jugada: mano, pie, o None (parda).
         results: List[Optional[Player]] = []
 
         for round_no in range(3):
             if folded_by is not None:
                 break
 
-            # Fase de envido solo antes de la primera carta de la 1ra ronda.
             if round_no == 0 and not envido_resolved:
-                envido_points, folded_by = self._resolve_envido(mano, pie)
                 envido_resolved = True
-                if folded_by is not None:
-                    winner = pie if folded_by is mano else mano
-                    winner.score += envido_points
-                    self._settle_fold(folded_by, truco_points=1, envido_pending=False)
+                kind, payload = self._resolve_envido_phase(order)
+                if kind == "fold":
+                    # Irse al mazo antes de cantar: pierde el truco en juego (1)
+                    self._settle_fold(payload, truco_points=1)
                     self._advance_mano()
                     return
-                if envido_points:
-                    winner_env = self._envido_winner(mano, pie)
-                    winner_env.score += envido_points
+                if kind == "rechazado":
+                    payload.score += 1
+                elif kind == "aceptado":
+                    self._envido_winner().score += payload
 
-            first, second = order
-            action = first.controller.choose_action(
-                first.visible_state(second, None, self.hand_log),
-                self._available_truco_calls(truco_level),
-            )
-            if action == "irse_al_mazo":
-                folded_by = first
-                break
-            if action in TRUCO_ESCALATION:
-                truco_points, truco_level, folded_by = self._resolve_truco_call(
-                    first, second, action, truco_level
+            round_cards: List[tuple[Player, Card]] = []
+            for p in order:
+                action = p.controller.choose_action(
+                    p.visible_state(self, None, self.hand_log),
+                    self._available_truco_calls(truco_level),
                 )
-                if folded_by is not None:
+                if action == "irse_al_mazo":
+                    folded_by = p
                     break
+                if action in TRUCO_ESCALATION:
+                    pts, lvl, fold_truco = self._resolve_truco_call(
+                        p, action, truco_level
+                    )
+                    truco_points = pts
+                    truco_level = lvl
+                    if fold_truco is not None:
+                        folded_by = fold_truco
+                        break
 
-            card_a = first.hand.pop(
-                first.hand.index(first.controller.choose_card(
-                    first.visible_state(second, None, self.hand_log)))
-            )
-            first.played.append(card_a)
-            card_b = second.hand.pop(
-                second.hand.index(second.controller.choose_card(
-                    second.visible_state(first, None, self.hand_log)))
-            )
-            second.played.append(card_b)
+                card = p.hand.pop(
+                    p.hand.index(p.controller.choose_card(
+                        p.visible_state(self, None, self.hand_log)))
+                )
+                p.played.append(card)
+                round_cards.append((p, card))
 
-            cmp = beats(card_a, card_b)
-            if cmp > 0:
-                results.append(first)
-                order = [first, second]
-            elif cmp < 0:
-                results.append(second)
-                order = [second, first]
-            else:
-                results.append(None)  # parda: mantiene el orden actual
+            if folded_by is not None:
+                break
 
-            if self._decide_hand_winner(results, mano, pie) is not None:
+            best_p, best_card = round_cards[0]
+            for p, card in round_cards[1:]:
+                if beats(card, best_card) > 0:
+                    best_p, best_card = p, card
+
+            is_parda = any(beats(card, best_card) == 0 for p, card in round_cards if p != best_p)
+            results.append(None if is_parda else best_p)
+
+            if not is_parda:
+                idx = self.players.index(best_p)
+                order = [self.players[(idx + i) % len(self.players)] for i in range(len(self.players))]
+
+            if self._decide_hand_winner(results) is not None:
                 break
 
         if folded_by is not None:
-            self._settle_fold(folded_by, truco_points=truco_points,
-                               envido_pending=False)
+            self._settle_fold(folded_by, truco_points=truco_points)
         else:
-            hand_winner = self._decide_hand_winner(results, mano, pie)
-            (hand_winner or mano).score += truco_points
+            hand_winner = self._decide_hand_winner(results)
+            winner_team = hand_winner.team if hand_winner else self.players[self.mano_index].team
+            winner_team.score += truco_points
 
         self._advance_mano()
 
-    def _decide_hand_winner(self, results: List[Optional[Player]],
-                             mano: Player, pie: Player) -> Optional[Player]:
-        """Determina si la mano ya está decidida con las rondas jugadas
-        hasta ahora, aplicando la regla real de parda (spec.md):
-        - Gana quien gane 2 rondas seguidas, o quien ganó la ronda previa
-          a una parda posterior (la parda "hereda" el resultado anterior).
-        - Si la primera ronda es parda, decide la segunda (si no es parda);
-          si también empata, decide la tercera; si las tres empatan, gana
-          la mano.
-        - Si la primera ronda tiene ganador y la segunda es parda, gana
-          quien ganó la primera.
-        - Si la primera y la segunda las gana cada uno, decide la tercera;
-          si la tercera también empata, gana quien ganó la primera ronda.
-        """
+    def _decide_hand_winner(self, results: List[Optional[Player]]) -> Optional[Player]:
         if not results:
             return None
 
         first = results[0]
         if first is not None:
-            if len(results) < 2:
-                return None
+            if len(results) < 2: return None
             second = results[1]
-            if second is first:
-                return first  # 2 rondas seguidas
-            if second is None:
-                return first  # parda hereda el resultado anterior
-            # segunda la ganó el otro: define la tercera
-            if len(results) < 3:
-                return None
+            if second is first: return first
+            if second is None: return first
+            if len(results) < 3: return None
             third = results[2]
             return first if third is None else third
         else:
-            # primera ronda parda
-            if len(results) < 2:
-                return None
+            if len(results) < 2: return None
             second = results[1]
-            if second is not None:
-                return second
-            if len(results) < 3:
-                return None
+            if second is not None: return second
+            if len(results) < 3: return None
             third = results[2]
-            return third if third is not None else mano
+            return third if third is not None else self.players[self.mano_index]
 
-    def _envido_winner(self, mano: Player, pie: Player) -> Player:
-        env_mano = best_envido(mano.hand)
-        env_pie = best_envido(pie.hand)
-        # En empate de envido gana la mano.
-        return mano if env_mano >= env_pie else pie
+    def _envido_winner(self) -> Team:
+        best_team, max_score = None, -1
+        for t in self.teams:
+            score = max(best_envido(p.hand) for p in t.players)
+            if score > max_score:
+                max_score, best_team = score, t
+        return best_team
 
-    def _resolve_envido(self, mano: Player, pie: Player):
-        """Devuelve (puntos_otorgados, jugador_que_dijo_no_quiero_o_None)."""
-        state_mano = mano.visible_state(pie, None, self.hand_log)
-        calls = ["envido", "real_envido"]
-        action = mano.controller.choose_action(state_mano, calls)
-        if action not in calls:
-            return 0, None
+    def _resolve_envido_phase(self, order):
+        """Fase de envido (spec.md): solo en la 1ª ronda, antes de jugar cartas.
 
-        level = action
-        points = ENVIDO_POINTS[level]
+        Devuelve (kind, payload):
+          ("skip", None)             nadie cantó envido
+          ("rechazado", team)        el rival no quiso: 1 punto al cantante,
+                                     la mano continúa
+          ("aceptado", puntos)       se comparan manos vía _envido_winner()
+          ("fold", player)           alguien se fue al mazo durante la fase
+        """
+        caller = order[0]
+        act = caller.controller.choose_action(
+            caller.visible_state(self, None, self.hand_log), ["envido"]
+        )
+        if act == "irse_al_mazo":
+            return "fold", caller
+        if act != "envido":
+            return "skip", None
+
+        level = "envido"
         while True:
-            responder = pie
+            opp_team = next(t for t in self.teams if t != caller.team)
+            responder = opp_team.players[0]
             resp = responder.controller.choose_call_response(
-                responder.visible_state(mano, level, self.hand_log), level
+                responder.visible_state(self, level, self.hand_log), level
             )
             if resp == "no_quiero":
-                return 1, responder
+                return "rechazado", caller.team
             if resp == "quiero":
-                return points, None
-            if resp in ENVIDO_POINTS and resp != level:
+                if level == "falta_envido":
+                    lider = max(t.score for t in self.teams)
+                    return "aceptado", max(self.target_score - lider, 1)
+                return "aceptado", ENVIDO_POINTS[level]
+            if (resp in ENVIDO_ESCALATION
+                    and ENVIDO_ESCALATION.index(resp) > ENVIDO_ESCALATION.index(level)):
                 level = resp
-                points = ENVIDO_POINTS[level]
-                mano, pie = pie, mano  # el que escaló ahora espera respuesta
+                caller = responder
                 continue
-            return points, None
+            return "aceptado", ENVIDO_POINTS[level]
 
     def _available_truco_calls(self, current_level: Optional[str]) -> List[str]:
         if current_level is None:
@@ -238,32 +246,33 @@ class Match:
             return [TRUCO_ESCALATION[idx + 1]]
         return []
 
-    def _resolve_truco_call(self, caller: Player, responder: Player,
-                             call: str, current_level: Optional[str]):
+    def _resolve_truco_call(self, caller: Player, call: str, current_level: Optional[str]):
+        """Resuelve el canto y su escalada (truco → retruco → vale cuatro).
+
+        Devuelve (puntos, nivel_final, fold|None). Un `no_quiero` termina la
+        mano otorgando al cantante los puntos del nivel anterior; una
+        contracanta (escalada) invierte roles y vuelve a consultar.
+        """
         level = call
+        proposer = caller
         while True:
+            opp_team = next(t for t in self.teams if t != proposer.team)
+            responder = opp_team.players[0]
             resp = responder.controller.choose_call_response(
-                responder.visible_state(caller, level, self.hand_log), level
+                responder.visible_state(self, level, self.hand_log), level
             )
-            if resp == "no_quiero":
-                prev_idx = TRUCO_ESCALATION.index(level) - 1
-                prev_points = 1 if prev_idx < 0 else TRUCO_POINTS[TRUCO_ESCALATION[prev_idx]]
-                return prev_points, level, responder
             if resp == "quiero":
                 return TRUCO_POINTS[level], level, None
-            if resp in TRUCO_ESCALATION and resp != level:
-                idx = TRUCO_ESCALATION.index(resp)
-                if idx != TRUCO_ESCALATION.index(level) + 1:
-                    raise IllegalMove(f"Escalada inválida: {level} -> {resp}")
-                caller, responder = responder, caller
-                level = resp
-                continue
-            raise IllegalMove(f"Respuesta inválida a {level}: {resp}")
+            if resp == "no_quiero":
+                idx = TRUCO_ESCALATION.index(level)
+                prev_points = 1 if idx == 0 else TRUCO_POINTS[TRUCO_ESCALATION[idx - 1]]
+                return prev_points, level, responder
+            level = resp
+            proposer = responder
 
-    def _settle_fold(self, folded_by: Player, truco_points: int,
-                      envido_pending: bool) -> None:
-        winner = self.players[0] if folded_by is self.players[1] else self.players[1]
-        winner.score += truco_points
+    def _settle_fold(self, folded_by: Player, truco_points: int) -> None:
+        opp_team = next(t for t in self.teams if t != folded_by.team)
+        opp_team.score += truco_points
 
     def _advance_mano(self) -> None:
-        self.mano_index = 1 - self.mano_index
+        self.mano_index = (self.mano_index + 1) % len(self.players)
