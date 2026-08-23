@@ -95,6 +95,80 @@ try {
     fail("¡las cartas de Ana se filtran a Beto!");
   console.log("✓ reparto y aislamiento de manos verificado");
 
+  // --- web-v2: señas en 2v2 ---
+  const c2 = await api("/matches", {
+    method: "POST",
+    body: JSON.stringify({
+      mode: "2v2",
+      target_score: 15,
+      seed: 7,
+      players: [
+        { name: "Ana" },
+        { name: "Beto" },
+        { name: "Clara" },
+        { name: "Dino" },
+      ],
+    }),
+  });
+  await api(`/matches/${c2.match_id}/senas`, {
+    method: "POST",
+    body: JSON.stringify({ de: "Ana", para: "Clara", sena: "guiño" }),
+  });
+  const vC1 = await api(
+    `/matches/${c2.match_id}/state?player=${encodeURIComponent("Clara")}`
+  );
+  if (vC1.you?.sena_recibida?.sena !== "guiño")
+    fail("Clara no recibió la seña");
+  const vC2 = await api(
+    `/matches/${c2.match_id}/state?player=${encodeURIComponent("Clara")}`
+  );
+  if (vC2.you?.sena_recibida) fail("la seña se entregó más de una vez");
+  let rechazo = false;
+  try {
+    await api(`/matches/${c2.match_id}/senas`, {
+      method: "POST",
+      body: JSON.stringify({ de: "Ana", para: "Beto", sena: "guiño" }),
+    });
+  } catch {
+    rechazo = true;
+  }
+  if (!rechazo) fail("una seña a un rival fue aceptada");
+  console.log("✓ señas: entrega única al compañero y rechazo a rivales");
+
+  // --- web-v2: carta boca abajo ---
+  let puesta = false;
+  for (let i = 0; i < 500 && !puesta; i++) {
+    const st = await api(`/matches/${mid}/state?player=Ana`);
+    if (st.finished) break;
+    if (st.turn === "Ana" && st.you?.pending?.decision === "action") {
+      try {
+        await api(`/matches/${mid}/actions`, {
+          method: "POST",
+          body: JSON.stringify({
+            player: "Ana",
+            action: "play_card",
+            card: st.you.hand[0],
+            tapada: true,
+          }),
+        });
+        puesta = true;
+      } catch (e) {
+        if (![409, 422].includes(e.status)) throw e;
+      }
+    } else if (st.turn === "Ana" || st.turn === "Beto") {
+      await decidir(mid, st.turn);
+    }
+  }
+  if (!puesta) fail("no se pudo jugar una carta tapada");
+  const vA = await api(`/matches/${mid}/state?player=Ana`);
+  const vBr = await api(`/matches/${mid}/state?player=Beto`);
+  const propia = vA.you.played.at(-1);
+  const ajena = vBr.others.find((o) => o.name === "Ana")?.played.at(-1);
+  if (!propia?.numero) fail("Ana no ve su propia carta tapada");
+  if (!ajena || !ajena.tapada) fail("Beto puede ver la carta tapada de Ana");
+  jugadas += 1;
+  console.log("✓ carta boca abajo: visible para el dueño, dorso para el rival");
+
   // --- flujo completo hasta fin del chico a 15 ---
   for (let i = 0; i < 20000; i++) {
     const st = await api(`/matches/${mid}/state`);

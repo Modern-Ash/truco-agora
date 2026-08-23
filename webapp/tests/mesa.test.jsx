@@ -2,11 +2,12 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Table from "../src/components/Table.jsx";
-import { getState, postAction } from "../src/api.js";
+import { getState, postAction, postSena } from "../src/api.js";
 
 vi.mock("../src/api.js", () => ({
   getState: vi.fn(),
   postAction: vi.fn(),
+  postSena: vi.fn(),
 }));
 
 const BASE = {
@@ -85,8 +86,86 @@ test("jugar una carta llama a la API y refresca el estado", async () => {
       player: "Ana",
       action: "play_card",
       card: { palo: "espada", numero: 1 },
+      tapada: false,
     })
   );
+});
+
+test("jugar boca abajo envía tapada:true y desmarca el checkbox", async () => {
+  const user = userEvent.setup();
+  const st = estado1v1({ turn: "Ana" });
+  st.you.pending = { decision: "action", options: ["jugar"], call: null };
+  getState.mockResolvedValue(st);
+  postAction.mockResolvedValue({});
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+
+  const chk = screen.getByTestId("toggle-tapada").querySelector("input");
+  expect(chk).not.toBeChecked();
+  await user.click(chk);
+  await user.click(screen.getByTestId("carta-oro-7"));
+  await waitFor(() =>
+    expect(postAction).toHaveBeenCalledWith(
+      "m1",
+      expect.objectContaining({ tapada: true })
+    )
+  );
+});
+
+test("oferta de envido con flor disponible muestra ¡Flor! y responde flor", async () => {
+  const user = userEvent.setup();
+  const st = estado1v1({ call_vigente: "envido", turn: "Ana" });
+  st.you.pending = {
+    decision: "offer",
+    options: ["paso", "envido", "flor"],
+    call: null,
+  };
+  getState.mockResolvedValue(st);
+  postAction.mockResolvedValue({});
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+
+  const btn = screen.getByTestId("accion-flor");
+  expect(btn).toHaveTextContent("¡Flor!");
+  await user.click(btn);
+  await waitFor(() =>
+    expect(postAction).toHaveBeenCalledWith("m1", {
+      player: "Ana",
+      respond: "flor",
+    })
+  );
+});
+
+test("respuesta a flor ofrece quiero/me_achico/contraflor", () => {
+  const st = estado1v1({ call_vigente: "flor", turn: "Beto" });
+  st.you.pending = {
+    decision: "response",
+    options: ["quiero", "no_quiero", "con_flor_quiero", "con_flor_me_achico"],
+    call: "flor",
+  };
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  for (const opt of ["quiero", "no_quiero", "con_flor_quiero", "con_flor_me_achico"]) {
+    expect(screen.getByTestId(`accion-${opt}`)).toBeInTheDocument();
+  }
+  expect(screen.getByTestId("banner-canto")).toHaveTextContent("¡Flor!");
+});
+
+test("banner de contraflor al resto", () => {
+  const st = estado1v1({ call_vigente: "contraflor_al_resto", turn: "Beto" });
+  st.you.pending = {
+    decision: "response",
+    options: ["quiero", "no_quiero"],
+    call: "contraflor_al_resto",
+  };
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.getByTestId("banner-canto")).toHaveTextContent(
+    "Contraflor al resto"
+  );
+});
+
+test("carta tapada del rival se muestra como dorso sin número", () => {
+  const st = estado1v1({ turn: "Beto" });
+  st.others[0].played = [{ tapada: true }];
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(document.querySelector(".mini-carta.tapada")).toBeInTheDocument();
 });
 
 test("oferta de envido muestra botones Envido/Paso y envía respond", async () => {
@@ -146,4 +225,60 @@ test("fin de partida muestra ganador y revancha", () => {
   getState.mockResolvedValue(st);
   render(<Table state={st} matchId="m1" seat="Ana" />);
   expect(screen.getByTestId("fin-partida")).toHaveTextContent("Ganó Equipo 1");
+});
+
+function estado2v2(over = {}) {
+  return {
+    ...BASE,
+    teams: [
+      { name: "Nosotros", score: 0, players: ["Ana", "Clara"] },
+      { name: "Ellos", score: 0, players: ["Beto", "Dino"] },
+    ],
+    others: [
+      { name: "Beto", team: "Ellos", played: [] },
+      { name: "Clara", team: "Nosotros", played: [] },
+      { name: "Dino", team: "Ellos", played: [] },
+    ],
+    you: {
+      name: "Ana",
+      team: "Nosotros",
+      hand: [{ palo: "oro", numero: 7 }],
+      played: [],
+      pending: null,
+      sena_recibida: null,
+    },
+    ...over,
+  };
+}
+
+test("enviar seña al compañero llama a postSena con de/para/sena", async () => {
+  const user = userEvent.setup();
+  const st = estado2v2({ turn: "Beto" });
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+
+  await user.click(screen.getByTestId("btn-sena-Clara"));
+  expect(screen.getByTestId("paleta-senas")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "guiño" }));
+  await waitFor(() =>
+    expect(postSena).toHaveBeenCalledWith("m1", {
+      de: "Ana",
+      para: "Clara",
+      sena: "guiño",
+    })
+  );
+});
+
+test("seña recibida muestra toast con emisor y seña", async () => {
+  const st = estado2v2({ turn: "Beto" });
+  st.you.sena_recibida = { de: "Clara", sena: "lengua" };
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  const toast = screen.getByTestId("toast-sena");
+  expect(toast).toHaveTextContent("Clara");
+  expect(toast).toHaveTextContent("lengua");
+});
+
+test("sin compañero no hay botón de seña", () => {
+  const st = estado1v1({ turn: "Beto" });
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.queryByTestId(/btn-sena-/)).not.toBeInTheDocument();
 });

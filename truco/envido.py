@@ -1,4 +1,4 @@
-"""Cálculo de puntaje de Envido (spec.md)."""
+"""Cálculo de puntaje de Envido y Flor (spec.md, reglas-v2.md)."""
 from __future__ import annotations
 
 from itertools import combinations
@@ -27,3 +27,13 @@ def best_envido(cards: List[Card]) -> int:
             best = max(best, score)
 
     return best
+
+
+def has_flor(cards: List[Card]) -> bool:
+    """Flor: las tres cartas de la mano son del mismo palo (reglas-v2.md)."""
+    return len(cards) == 3 and len({c.palo for c in cards}) == 1
+
+
+def best_flor(cards: List[Card]) -> int:
+    """Valor de la flor: suma de valores de envido + 20 (figuras valen 0)."""
+    return sum(c.envido_value for c in cards) + 20

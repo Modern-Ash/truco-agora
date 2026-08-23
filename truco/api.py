@@ -42,7 +42,7 @@ class Decision:
 @dataclass
 class _Answer:
     kind: str
-    value: Union[str, Card]
+    value: Union[str, Card, Tuple["Card", bool]]
 
 
 class WebController(PlayerController):
@@ -110,26 +110,44 @@ class WebController(PlayerController):
                 self.pending = None
 
     # -- PlayerController -------------------------------------------------
+    # Menús propios de la fase previa a la 1ª carta (reglas-v2.md)
+    FASE_ENVITE_CALLS = {"envido", "flor"}
+    FLOR_RESPONSE_OPTIONS = ["con_flor_quiero", "con_flor_me_achico",
+                             "contraflor", "contraflor_al_resto"]
+
     def choose_action(self, state: VisibleState,
                       available_calls: List[str]) -> str:
-        if available_calls == ["envido"]:
-            return self._ask("offer", ["envido", "paso"], state)
+        if available_calls and set(available_calls) <= self.FASE_ENVITE_CALLS:
+            return self._ask("offer", ["paso"] + list(available_calls), state)
         options = ["jugar"] + list(available_calls) + ["irse_al_mazo"]
         return self._ask("action", options, state)
 
     def choose_card(self, state: VisibleState) -> Card:
-        return self._take("card").value
+        value = self._take("card").value
+        if isinstance(value, tuple):
+            card, tapada = value
+            self._next_face_down = bool(tapada)
+            return card
+        return value
+
+    def choose_face_down(self, state: VisibleState) -> bool:
+        flag = getattr(self, "_next_face_down", False)
+        self._next_face_down = False
+        return flag
 
     def choose_call_response(self, state: VisibleState, call: str) -> str:
-        if call in TRUCO_ESCALATION:
+        if call == "flor":
+            options = list(self.FLOR_RESPONSE_OPTIONS)
+        elif call in ("contraflor", "contraflor_al_resto"):
+            options = ["quiero", "no_quiero"]
+        elif call in TRUCO_ESCALATION:
             idx = TRUCO_ESCALATION.index(call)
-            escaladas = TRUCO_ESCALATION[idx + 1:]
+            options = ["quiero", "no_quiero"] + TRUCO_ESCALATION[idx + 1:]
         elif call in ENVIDO_ESCALATION:
             idx = ENVIDO_ESCALATION.index(call)
-            escaladas = ENVIDO_ESCALATION[idx + 1:]
+            options = ["quiero", "no_quiero"] + ENVIDO_ESCALATION[idx + 1:]
         else:
-            escaladas = []
-        options = ["quiero", "no_quiero"] + escaladas
+            options = ["quiero", "no_quiero"]
         return self._ask("response", options, state, call)
 
 
@@ -143,6 +161,9 @@ class MatchSession:
         self.match = match
         self.web_controllers = web_controllers
         self.error: Optional[str] = None
+        # Señas compañero→compañero (reglas-v2.md §4): entrega única
+        self.senas_inbox: Dict[str, Tuple[str, str]] = {}  # receptor -> (de, seña)
+        self.senas_lock = threading.Lock()
         self.thread = threading.Thread(target=self._run, daemon=True)
 
     def _run(self) -> None:
@@ -189,8 +210,18 @@ class ActionRequest(BaseModel):
     player: str
     action: Optional[str] = None     # play_card | irse_al_mazo
     call: Optional[str] = None       # truco | retruco | vale_cuatro | envido...
-    respond: Optional[str] = None    # quiero | no_quiero | paso | contracanta
+    respond: Optional[str] = None    # quiero | no_quiero | paso | con_flor_...
     card: Optional[CardIn] = None
+    tapada: bool = False             # jugar la carta boca abajo (reglas-v2.md)
+
+
+class SenaRequest(BaseModel):
+    de: str
+    para: str
+    sena: str
+
+
+SENAS_VALIDAS = ["guiño", "lengua", "ceja", "beso", "suspiro"]
 
 
 # ------------------------------------------------------------- snapshots
@@ -198,6 +229,17 @@ class ActionRequest(BaseModel):
 
 def _card_out(card: Card) -> dict:
     return {"palo": card.palo, "numero": card.numero}
+
+
+def _played_out(p: Player, reveal: bool) -> List[dict]:
+    """Cartas jugadas; las tapadas se ocultan salvo para su dueño."""
+    out: List[dict] = []
+    for card, tapada in zip(p.played, p.face_down):
+        if tapada and not reveal:
+            out.append({"tapada": True})
+        else:
+            out.append(_card_out(card))
+    return out
 
 
 def _snapshot(session: MatchSession,
@@ -219,8 +261,12 @@ def _snapshot(session: MatchSession,
             snap = ctrl.snapshot_pending()
             if snap is not None:
                 turn = p.name
-                call_vigente = snap.get("call") or (
-                    "envido" if snap["decision"] == "offer" else None)
+                if snap["decision"] == "offer":
+                    opts = snap.get("options") or []
+                    call_vigente = ("flor" if "flor" in opts
+                                    and "envido" not in opts else "envido")
+                else:
+                    call_vigente = snap.get("call")
                 break
 
     data = {
@@ -242,18 +288,28 @@ def _snapshot(session: MatchSession,
         "call_vigente": call_vigente,
         "others": [],
     }
+
+    # Entrega única de señas (reglas-v2.md §4): se consume al leerse.
+    sena_recibida = None
+    if you is not None:
+        with session.senas_lock:
+            sena_recibida = session.senas_inbox.pop(you.name, None)
+
     for p in match.players:
         entry = {
             "name": p.name,
             "team": p.team.name,
-            "played": [_card_out(c) for c in p.played],
+            "played": _played_out(p, reveal=p is you),
         }
         if p is you:
             data["you"] = {
                 "name": p.name,
                 "team": p.team.name,
                 "hand": [_card_out(c) for c in p.hand],
-                "played": [_card_out(c) for c in p.played],
+                "played": _played_out(p, reveal=True),
+                "sena_recibida": (
+                    {"de": sena_recibida[0], "sena": sena_recibida[1]}
+                    if sena_recibida else None),
                 "pending": None,
             }
             if isinstance(p.controller, WebController):
@@ -308,26 +364,29 @@ def _validate_and_push(controller: WebController, req: ActionRequest) -> None:
         if req.respond in ("paso", "no_envido"):
             _submit([("offer", "no_envido")])
             return
-        if req.respond == "envido":
+        if req.respond == "envido" and "envido" in options:
             _submit([("offer", "envido")])
+            return
+        if req.respond == "flor" and "flor" in options:
+            _submit([("offer", "flor")])
             return
         if req.action == "play_card":
             card = _validated_card(req.card, controller)
-            # declina envido y juega carta (dos decisiones encadenadas)
+            # declina envites y juega carta (decisiones encadenadas)
             _submit([("offer", "no_envido"),
                      ("action", "jugar"),
-                     ("card", card)])
+                     ("card", (card, req.tapada))])
             return
         if req.call == "irse_al_mazo":
             _submit([("offer", "irse_al_mazo")])
             return
         raise HTTPException(status_code=422,
-                            detail=f"Oferta de envido vigente; opciones: {options}")
+                            detail=f"Oferta vigente; opciones: {options}")
 
     if kind == "action":
         if req.action == "play_card":
             card = _validated_card(req.card, controller)
-            _submit([("action", "jugar"), ("card", card)])
+            _submit([("action", "jugar"), ("card", (card, req.tapada))])
             return
         if req.action == "irse_al_mazo":
             _submit([("action", "irse_al_mazo")])
@@ -428,6 +487,31 @@ def post_action(match_id: str, req: ActionRequest):
     # estado fresco (la decisión puede haber cambiado de jugador).
     controller.wait_consumed()
     return _snapshot(session, req.player)
+
+
+@app.post("/matches/{match_id}/senas", status_code=201)
+def post_sena(match_id: str, req: SenaRequest):
+    """Señas efímeras compañero→compañero (reglas-v2.md §4).
+
+    Se entregan una sola vez: aparecen en el próximo GET /state del
+    receptor (campo `you.sena_recibida`) y se eliminan.
+    """
+    session = get_session(match_id)
+    teams = {p.name: p.team.name for p in session.match.players}
+    if req.de not in teams or req.para not in teams:
+        raise HTTPException(status_code=404, detail="Jugador inexistente")
+    if teams[req.de] != teams[req.para]:
+        raise HTTPException(status_code=422,
+                            detail="Las señas son solo entre compañeros de equipo")
+    if req.de == req.para:
+        raise HTTPException(status_code=422,
+                            detail="No te podés mandar una seña a vos mismo")
+    if req.sena not in SENAS_VALIDAS:
+        raise HTTPException(status_code=422,
+                            detail=f"Seña inválida (válidas: {SENAS_VALIDAS})")
+    with session.senas_lock:
+        session.senas_inbox[req.para] = (req.de, req.sena)
+    return {"ok": True, "de": req.de, "para": req.para, "sena": req.sena}
 
 
 if __name__ == "__main__":

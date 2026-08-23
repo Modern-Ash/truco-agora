@@ -254,6 +254,76 @@ button.primary:hover { filter: brightness(1.1); }
 .carta.palo-basto { color: #2c6e31; }
 .carta.palo-espada { color: #27496d; }
 
+.mini-carta.tapada {
+  background: #1e4d3a;
+  color: rgba(247, 241, 227, 0.75);
+  font-size: 1.1rem;
+}
+
+/* ---------- señas ---------- */
+.zona-senas { position: relative; display: inline-block; }
+.btn-sena {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--crema);
+  color: var(--tinta);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.btn-sena:hover { opacity: 1; }
+.paleta-senas {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  gap: 0.3rem;
+  background: var(--tinta, #14231b);
+  border: 1px solid rgba(247, 241, 227, 0.35);
+  border-radius: 999px;
+  padding: 0.3rem 0.45rem;
+}
+.paleta-senas button {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--crema, #f7f1e3);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0.2rem 0.55rem;
+}
+.paleta-senas button:hover { background: rgba(255, 255, 255, 0.14); }
+
+.toast-sena {
+  position: fixed;
+  left: 50%;
+  bottom: 9.5rem;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: #ffd76e;
+  color: var(--tinta);
+  font-weight: bold;
+  padding: 0.5rem 1.2rem;
+  border-radius: 999px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  animation: jugar 0.18s ease-out;
+}
+
+/* ---------- tapada propia ---------- */
+.toggle-tapada {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--crema);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
 /* ---------- fin de partida ---------- */
 .overlay {
   position: fixed;

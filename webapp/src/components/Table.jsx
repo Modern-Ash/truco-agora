@@ -2,16 +2,31 @@ import React, { useEffect, useState } from "react";
 import Hand from "./Hand.jsx";
 import Actions from "./Actions.jsx";
 import Scoreboard from "./Scoreboard.jsx";
-import { createMatch, getState, postAction } from "../api.js";
+import { createMatch, getState, postAction, postSena } from "../api.js";
 import { paloGlyph } from "../cartas.js";
+
+const SENAS = ["guiño", "lengua", "ceja", "beso", "suspiro"];
 
 export default function Table({ state: propState, matchId, seat }) {
   const [state, setState] = useState(propState);
   const [busy, setBusy] = useState(false);
+  const [tapada, setTapada] = useState(false);
+  const [senaAbierta, setSenaAbierta] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     setState(propState);
   }, [propState]);
+
+  // Entrega de señas (reglas-v2.md §4): mostrar y auto-ocultar
+  useEffect(() => {
+    const s = propState?.you?.sena_recibida;
+    if (s) {
+      setToast(`${s.de} te hizo: ${s.sena}`);
+      const t = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [propState?.you?.sena_recibida]);
 
   const you = state.you;
   const myTurn = Boolean(
@@ -38,7 +53,17 @@ export default function Table({ state: propState, matchId, seat }) {
 
   function playCard(card) {
     if (!myTurn || busy) return;
-    send({ action: "play_card", card });
+    send({ action: "play_card", card, tapada });
+    setTapada(false); // la jugada boca abajo es por única vez
+  }
+
+  async function mandarSena(sena) {
+    setSenaAbierta(false);
+    try {
+      await postSena(matchId, { de: seat, para: partner.name, sena });
+    } catch {
+      /* sin destino válido: ignorar */
+    }
   }
 
   async function revancha() {
@@ -81,6 +106,10 @@ export default function Table({ state: propState, matchId, seat }) {
             isTurn={state.turn === partner.name}
             side="top"
             dataTestid={`slot-${partner.name}`}
+            onSena={() => setSenaAbierta((v) => !v)}
+            senaAbierta={senaAbierta}
+            senas={SENAS}
+            onElegirSena={mandarSena}
           />
         )}
 
@@ -153,10 +182,26 @@ export default function Table({ state: propState, matchId, seat }) {
             ) : (
               myTurn && <p>Es tu turno: jugá una carta.</p>
             )}
+            {myTurn && (
+              <label className="toggle-tapada" data-testid="toggle-tapada">
+                <input
+                  type="checkbox"
+                  checked={tapada}
+                  onChange={(e) => setTapada(e.target.checked)}
+                />
+                Jugar boca abajo
+              </label>
+            )}
             <Hand cards={you.hand} myTurn={myTurn} onPlay={playCard} />
           </div>
         )}
       </div>
+
+      {toast && (
+        <div className="toast-sena" data-testid="toast-sena">
+          {toast}
+        </div>
+      )}
 
       {state.finished && (
         <div className="overlay" data-testid="fin-partida">
@@ -185,6 +230,9 @@ function bannerTexto(state, seat) {
     truco: "Truco cantado",
     retruco: "Retruco",
     vale_cuatro: "Vale Cuatro",
+    flor: "¡Flor!",
+    contraflor: "Contraflor",
+    contraflor_al_resto: "Contraflor al resto",
   };
   const texto = mapa[call] || call;
   return esMiTurno
@@ -192,7 +240,8 @@ function bannerTexto(state, seat) {
     : `${texto}: esperando a ${state.turn}`;
 }
 
-function PlayerSlot({ player, isMano, isTurn, side, dataTestid }) {
+function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
+                      onSena, senaAbierta, senas, onElegirSena }) {
   return (
     <div
       className={`slot ${side} ${isTurn ? "turno" : ""}`}
@@ -203,6 +252,27 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid }) {
         {isMano && <span className="chip">MANO</span>}
         {isTurn && <span className="chip turno">JUGANDO</span>}
       </div>
+      {onSena && (
+        <div className="zona-senas">
+          <button
+            className="btn-sena"
+            data-testid={`btn-sena-${player.name}`}
+            onClick={onSena}
+            title="Enviar una seña a tu compañero"
+          >
+            😉 Seña
+          </button>
+          {senaAbierta && (
+            <div className="paleta-senas" data-testid="paleta-senas">
+              {senas.map((s) => (
+                <button key={s} onClick={() => onElegirSena(s)}>
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -212,12 +282,18 @@ function BazaRow({ name, cards, own }) {
     <div className={`baza-row ${own ? "propia" : ""}`}>
       <span className="baza-nombre">{name}</span>
       <div className="baza-cartas">
-        {(cards || []).map((c, i) => (
-          <span key={i} className={`mini-carta palo-${c.palo}`}>
-            <b>{c.numero}</b>
-            {paloGlyph(c.palo)}
-          </span>
-        ))}
+        {(cards || []).map((c, i) =>
+          c.tapada ? (
+            <span key={i} className="mini-carta tapada" title="Carta boca abajo">
+              🂠
+            </span>
+          ) : (
+            <span key={i} className={`mini-carta palo-${c.palo}`}>
+              <b>{c.numero}</b>
+              {paloGlyph(c.palo)}
+            </span>
+          )
+        )}
       </div>
     </div>
   );

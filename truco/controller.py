@@ -18,11 +18,13 @@ class VisibleState:
     """Estado visible para un controlador al momento de decidir.
 
     Nunca incluye las cartas de los rivales (solo lo que ya jugaron).
+    Las cartas jugadas boca abajo aparecen como None salvo en
+    `played_by_me` (el dueño siempre conoce su propia cara).
     """
     hand_cards: List[Card]
     played_by_me: List[Card]
-    played_by_teammate: Optional[List[Card]]
-    played_by_opponents: List[List[Card]]
+    played_by_teammate: Optional[List[Optional[Card]]]
+    played_by_opponents: List[List[Optional[Card]]]
     my_team_score: int
     opponent_team_score: int
     pending_call: Optional[str]  # p.ej. "truco", "envido", None
@@ -44,6 +46,11 @@ class PlayerController(ABC):
     def choose_action(self, state: VisibleState, available_calls: List[str]) -> str:
         """Elige jugar una carta ('jugar'), cantar algo de `available_calls`,
         o irse al mazo ('irse_al_mazo')."""
+
+    def choose_face_down(self, state: VisibleState) -> bool:
+        """Decide si la carta elegida se juega boca abajo (reglas-v2.md).
+        Por defecto siempre boca arriba; los controladores pueden override."""
+        return False
 
 
 class HumanController(PlayerController):
@@ -72,6 +79,11 @@ class HumanController(PlayerController):
         resp = input(f"[{self.name}] Responder a '{call}' "
                       f"(quiero/no_quiero/escalar): ").strip().lower()
         return resp or "no_quiero"
+
+    def choose_face_down(self, state: VisibleState) -> bool:
+        resp = input(f"[{self.name}] ¿Jugar la carta boca abajo? (s/n): "
+                     ).strip().lower()
+        return resp in ("s", "si", "y", "yes")
 
 
 class LLMClient(Protocol):
@@ -105,14 +117,20 @@ class LLMController(PlayerController):
         self.name = name
         self.client = client
 
+    def _fmt(self, cards) -> str:
+        return [str(c) if c is not None else "carta tapada" for c in cards]
+
     def _prompt(self, state: VisibleState, question: str) -> str:
-        teammate_played = f"Jugadas compañero: {[str(c) for c in state.played_by_teammate]}" if state.played_by_teammate is not None else ""
-        opponents_played = "\n".join([f"Rival {i}: {[str(c) for c in played]}" for i, played in enumerate(state.played_by_opponents)])
+        teammate_played = (f"Jugadas compañero: {self._fmt(state.played_by_teammate)}"
+                           if state.played_by_teammate is not None else "")
+        opponents_played = "\n".join(
+            [f"Rival {i}: {self._fmt(played)}"
+             for i, played in enumerate(state.played_by_opponents)])
 
         return (
             f"Sos {self.name}, jugando al Truco Argentino.\n"
-            f"Tu mano: {[str(c) for c in state.hand_cards]}\n"
-            f"Jugadas propias: {[str(c) for c in state.played_by_me]}\n"
+            f"Tu mano: {self._fmt(state.hand_cards)}\n"
+            f"Jugadas propias: {self._fmt(state.played_by_me)}\n"
             f"{teammate_played}\n"
             f"Jugadas rivales:\n{opponents_played}\n"
             f"Marcador: tu equipo {state.my_team_score} - rival {state.opponent_team_score}\n"

@@ -11,6 +11,11 @@ const LABELS = {
   no_quiero: "No Quiero",
   paso: "Paso",
   irse_al_mazo: "Irse al mazo",
+  flor: "¡Flor!",
+  con_flor_quiero: "Con flor quiero",
+  con_flor_me_achico: "Con flor me achico",
+  contraflor: "Contraflor",
+  contraflor_al_resto: "Contraflor al resto",
 };
 
 export function actionLabel(opt) {
@@ -23,7 +28,7 @@ export default function Actions({ pending, onAction }) {
 
   let buttons = [];
   if (decision === "offer") {
-    buttons = ["envido", "paso"];
+    buttons = options; // ["paso", "envido", ("flor")]
   } else if (decision === "action") {
     buttons = [...options.filter((o) => o !== "jugar")];
   } else if (decision === "response") {

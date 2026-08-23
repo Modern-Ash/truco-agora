@@ -32,3 +32,10 @@ export function postAction(matchId, action) {
     body: JSON.stringify(action),
   });
 }
+
+export function postSena(matchId, { de, para, sena }) {
+  return req(`/matches/${matchId}/senas`, {
+    method: "POST",
+    body: JSON.stringify({ de, para, sena }),
+  });
+}
