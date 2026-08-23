@@ -2,7 +2,7 @@
 schema: "agora/swarm/v1"
 id: "truco-webapp"
 method: "spec-driven"
-status: "ready"
+status: "completed"
 branch: "agora/truco-webapp"
 required-roles: ["spec-owner","developer"]
 assignments: {"spec-owner":"project:owner","developer":"project:agent"}
