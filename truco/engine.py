@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from .cards import Card, beats, full_deck
 from .controller import PlayerController, VisibleState
@@ -92,7 +92,9 @@ class Match:
     """Partida hasta `target_score` (15 o 30 según spec.md). Soporta 1v1 y 2v2."""
 
     def __init__(self, teams: List[Team],
-                 target_score: int = 15, rng: Optional[random.Random] = None):
+                 target_score: int = 15, rng: Optional[random.Random] = None,
+                 compare_fn: Optional[Callable[[Optional[Card], Optional[Card]], int]] = None,
+                 envido_fn: Optional[Callable[[List[Card]], int]] = None):
         if target_score not in (15, 30):
             raise ValueError("target_score debe ser 15 o 30 (spec.md)")
         self.teams = teams
@@ -105,6 +107,12 @@ class Match:
         self.mano_index = 0  # índice del jugador "mano" en self.players
         self.hand_log: List[str] = []
         self.winner_team: Optional[Team] = None  # primero en alcanzar el objetivo
+        # Puntos de arbitraje inyectables (docs/llm-engine.md): por default el
+        # cálculo determinista de cards.py/envido.py; LLMEngine los reemplaza
+        # por equivalentes arbitrados por LLM sin tocar el resto del motor.
+        self._compare_plays: Callable[[Optional[Card], Optional[Card]], int] = (
+            compare_fn or _cmp_plays)
+        self._envido_value: Callable[[List[Card]], int] = envido_fn or best_envido
 
     @property
     def winner(self) -> Optional[Team]:
@@ -207,10 +215,10 @@ class Match:
 
             best_p, best_card = round_cards[0]
             for p, card in round_cards[1:]:
-                if _cmp_plays(card, best_card) > 0:
+                if self._compare_plays(card, best_card) > 0:
                     best_p, best_card = p, card
 
-            is_parda = any(_cmp_plays(card, best_card) == 0
+            is_parda = any(self._compare_plays(card, best_card) == 0
                            for p, card in round_cards if p != best_p)
             results.append(None if is_parda else best_p)
 
@@ -288,7 +296,7 @@ class Match:
 
     def _envido_winner(self) -> Team:
         return self._team_best(
-            lambda t: max(best_envido(p.hand) for p in t.players))
+            lambda t: max(self._envido_value(p.hand) for p in t.players))
 
     def _flor_winner(self) -> Team:
         def mejor_flor(t: Team) -> float:

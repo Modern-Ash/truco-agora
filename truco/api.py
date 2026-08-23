@@ -24,6 +24,7 @@ from .controller import (
     VisibleState,
 )
 from .engine import ENVIDO_ESCALATION, Match, Player, Team, TRUCO_ESCALATION
+from .llm_engine import LLMEngine
 from .llm_providers import build_llm_client
 
 
@@ -207,6 +208,9 @@ class CreateMatchRequest(BaseModel):
     target_score: int = 15
     players: List[PlayerSpec]
     seed: Optional[int] = None
+    engine: str = "llm"          # llm (default, docs/llm-engine.md) | deterministic
+    engine_provider: str = "mock"   # proveedor LLM para el motor (no para jugadores)
+    engine_model: Optional[str] = None
 
 
 class ActionRequest(BaseModel):
@@ -464,7 +468,18 @@ def create_match(req: CreateMatchRequest):
         p.team = next(t for t in teams if p in t.players)
 
     rng = random.Random(req.seed) if req.seed is not None else random.Random()
-    match = Match(teams, target_score=req.target_score, rng=rng)
+    if req.engine == "llm":
+        try:
+            engine_client = build_llm_client(req.engine_provider, model=req.engine_model)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        match = LLMEngine(teams, target_score=req.target_score, rng=rng,
+                          client=engine_client)
+    elif req.engine == "deterministic":
+        match = Match(teams, target_score=req.target_score, rng=rng)
+    else:
+        raise HTTPException(status_code=422,
+                            detail=f"engine debe ser 'llm' o 'deterministic': {req.engine!r}")
 
     match_id = uuid.uuid4().hex[:12]
     session = MatchSession(match_id, match, web_controllers)

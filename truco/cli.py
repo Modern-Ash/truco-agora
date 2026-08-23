@@ -7,9 +7,11 @@ import os
 
 from .controller import DeterministicMockLLMClient, HumanController, LLMController
 from .engine import Match, Player, Team
+from .llm_engine import LLMEngine
 from .llm_providers import PROVIDERS, build_llm_client
 
 DEFAULT_PROVIDER = os.environ.get("TRUCO_LLM_PROVIDER", "mock")
+DEFAULT_ENGINE = os.environ.get("TRUCO_ENGINE", "llm")
 
 
 def build_controller(kind: str, name: str, provider: str = "mock",
@@ -38,6 +40,17 @@ def main() -> None:
         ),
     )
     parser.add_argument("--llm-model", default=None, help="Modelo a pedirle al proveedor")
+    parser.add_argument(
+        "--engine",
+        choices=["llm", "deterministic"],
+        default=DEFAULT_ENGINE,
+        help=(
+            "Motor de reglas: 'llm' (default; arbitra comparación de cartas, "
+            "envido y resolución de mano vía LLM — ver docs/llm-engine.md y "
+            "el riesgo aceptado documentado ahí) o 'deterministic' (Python "
+            "puro, sin dependencia de LLM para el arbitraje)"
+        ),
+    )
     args = parser.parse_args()
 
     def player(i: int) -> Player:
@@ -62,7 +75,11 @@ def main() -> None:
             p.team = t2
         teams = [t1, t2]
 
-    match = Match(teams, target_score=args.target)
+    if args.engine == "llm":
+        engine_client = build_llm_client(args.llm_provider, model=args.llm_model)
+        match = LLMEngine(teams, target_score=args.target, client=engine_client)
+    else:
+        match = Match(teams, target_score=args.target)
     winner = match.play_match()
     print(f"\n¡Ganó el {winner.name}! (Marcador: {teams[0].score} - {teams[1].score})")
 
