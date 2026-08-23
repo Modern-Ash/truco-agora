@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 export function usePolling(fn, intervalMs = 1000, deps = []) {
   const [error, setError] = useState(null);
