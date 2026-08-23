@@ -282,3 +282,33 @@ test("sin compañero no hay botón de seña", () => {
   render(<Table state={st} matchId="m1" seat="Ana" />);
   expect(screen.queryByTestId(/btn-sena-/)).not.toBeInTheDocument();
 });
+
+test("jugada rechazada por el backend (422) muestra un toast de error", async () => {
+  const user = userEvent.setup();
+  const st = estado1v1({ turn: "Ana" });
+  st.you.pending = { decision: "action", options: ["jugar"], call: null };
+  const err = Object.assign(new Error("Carta 7 de oro no está en la mano"), {
+    status: 422,
+  });
+  postAction.mockRejectedValue(err);
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+
+  await user.click(screen.getByTestId("carta-oro-7"));
+  await waitFor(() =>
+    expect(screen.getByTestId("toast-error")).toHaveTextContent(
+      "Carta 7 de oro no está en la mano"
+    )
+  );
+});
+
+test("fallo de red transitorio (sin status) no muestra toast de error", async () => {
+  const user = userEvent.setup();
+  const st = estado1v1({ turn: "Ana" });
+  st.you.pending = { decision: "action", options: ["jugar"], call: null };
+  postAction.mockRejectedValue(new TypeError("Failed to fetch"));
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+
+  await user.click(screen.getByTestId("carta-oro-7"));
+  await waitFor(() => expect(postAction).toHaveBeenCalled());
+  expect(screen.queryByTestId("toast-error")).not.toBeInTheDocument();
+});

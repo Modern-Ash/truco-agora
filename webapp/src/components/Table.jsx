@@ -13,6 +13,7 @@ export default function Table({ state: propState, matchId, seat }) {
   const [tapada, setTapada] = useState(false);
   const [senaAbierta, setSenaAbierta] = useState(false);
   const [toast, setToast] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   useEffect(() => {
     setState(propState);
@@ -27,6 +28,12 @@ export default function Table({ state: propState, matchId, seat }) {
       return () => clearTimeout(t);
     }
   }, [propState?.you?.sena_recibida]);
+
+  useEffect(() => {
+    if (!actionError) return;
+    const t = setTimeout(() => setActionError(null), 4000);
+    return () => clearTimeout(t);
+  }, [actionError]);
 
   const you = state.you;
   const myTurn = Boolean(
@@ -45,7 +52,10 @@ export default function Table({ state: propState, matchId, seat }) {
       await postAction(matchId, { player: seat, ...payload });
       setState(await getState(matchId, seat));
     } catch (e) {
-      // el polling mostrará el estado real; errores transitorios se ignoran
+      // Un error HTTP (e.status) es una respuesta real del backend rechazando
+      // la jugada (422/409): se le avisa al usuario. Sin status es un fallo
+      // de red transitorio; el polling ya se encarga de reponer el estado.
+      if (e.status) setActionError(e.message);
     } finally {
       setBusy(false);
     }
@@ -200,6 +210,12 @@ export default function Table({ state: propState, matchId, seat }) {
       {toast && (
         <div className="toast-sena" data-testid="toast-sena">
           {toast}
+        </div>
+      )}
+
+      {actionError && (
+        <div className="toast-error" data-testid="toast-error">
+          {actionError}
         </div>
       )}
 
