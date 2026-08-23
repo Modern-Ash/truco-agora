@@ -1,0 +1,30 @@
+---
+schema: "agora/activity-ledger/v1"
+---
+
+# Activity ledger
+
+Append-only project chronology. Raw output remains in linked session and Tool Run records.
+- 2026-08-23T11:58:09.874134Z | project.initialized | actor=- swarm=- work=- session=- tool-run=- source=repo://.agora/project.md | Initialized project with integration=codex method=spec-driven
+- 2026-08-23T11:58:09.910883Z | swarm.created | actor=- swarm=truco-agora work=- session=- tool-run=- source=repo://.agora/swarms/truco-agora/events.md | branch=agora/truco-agora
+- 2026-08-23T11:58:09.911534Z | swarm.actor-assigned | actor=project:owner swarm=truco-agora work=- session=- tool-run=- source=repo://.agora/swarms/truco-agora/events.md | role=spec-owner actor=project:owner
+- 2026-08-23T11:58:09.912074Z | swarm.actor-assigned | actor=project:agent swarm=truco-agora work=- session=- tool-run=- source=repo://.agora/swarms/truco-agora/events.md | role=developer actor=project:agent
+- 2026-08-23T11:58:09.912206Z | quickstart.completed | actor=- swarm=truco-agora work=- session=- tool-run=- source=repo://.agora/swarms/truco-agora/SWARM.md | Created starter team and ready swarm with method=spec-driven; secure=false
+- 2026-08-23T11:59:31.312179Z | work.created | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | state=drafting actor=project:owner
+- 2026-08-23T12:01:44.060997Z | artifact.added | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | kind=spec.md uri=file://spec.md actor=project:owner
+- 2026-08-23T12:01:49.491944Z | work.criterion-satisfied | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | criterion=spec-completa actor=project:owner
+- 2026-08-23T12:09:25.698400Z | artifact.added | actor=project:agent swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | kind=test-report uri=file://test-report.txt actor=project:agent
+- 2026-08-23T12:09:33.930926Z | work.criterion-satisfied | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | criterion=motor-reglas actor=project:owner
+- 2026-08-23T12:09:34.082366Z | work.criterion-satisfied | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | criterion=cli-jugable actor=project:owner
+- 2026-08-23T12:09:34.236868Z | work.criterion-satisfied | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | criterion=tests-reglas actor=project:owner
+- 2026-08-23T12:09:40.062074Z | work.transitioned | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | from=drafting to=clarified actor=project:owner
+- 2026-08-23T12:09:40.063099Z | swarm.status-changed | actor=- swarm=truco-agora work=- session=- tool-run=- source=repo://.agora/swarms/truco-agora/events.md | from=ready to=running
+- 2026-08-23T12:09:50.369108Z | work.transitioned | actor=project:agent swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | from=clarified to=planned actor=project:agent
+- 2026-08-23T12:10:01.451720Z | work.transitioned | actor=project:agent swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | from=planned to=implementing actor=project:agent
+- 2026-08-23T12:15:09.711308Z | artifact.added | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | kind=spec.md uri=file://spec.md actor=project:owner
+- 2026-08-23T12:15:09.873486Z | artifact.added | actor=project:agent swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | kind=test-report uri=file://test-report.txt actor=project:agent
+- 2026-08-23T12:15:15.685859Z | work.transitioned | actor=project:agent swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | from=implementing to=verifying actor=project:agent
+- 2026-08-23T12:15:58.347053Z | evidence.added | actor=project:agent swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | type=test-suite result=success actor=project:agent
+- 2026-08-23T12:16:03.493164Z | approval.added | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | role=spec-owner actor=project:owner delegation=none
+- 2026-08-23T12:16:07.516387Z | work.transitioned | actor=project:owner swarm=truco-agora work=truco-spec-engine session=- tool-run=- source=repo://.agora/swarms/truco-agora/work/truco-spec-engine/events.md | from=verifying to=completed actor=project:owner
+- 2026-08-23T12:16:07.517176Z | swarm.status-changed | actor=- swarm=truco-agora work=- session=- tool-run=- source=repo://.agora/swarms/truco-agora/events.md | from=running to=completed
