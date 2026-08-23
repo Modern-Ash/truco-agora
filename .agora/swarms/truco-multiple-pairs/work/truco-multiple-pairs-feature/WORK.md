@@ -3,14 +3,14 @@ schema: "agora/work/v1"
 id: "truco-multiple-pairs-feature"
 swarm: "truco-multiple-pairs"
 title: "Implementar soporte para m\u00faltiples parejas (2v2)"
-state: "drafting"
+state: "completed"
 operational-status: "active"
 status-reason: null
 status-by: null
 status-at: null
 acceptance-criteria: {"spec-updated":"La especificaci\u00f3n incluye las reglas de 2v2","engine-updated":"El motor soporta equipos y turnos horarios","cli-updated":"La CLI permite modo 2v2","tests-updated":"Existen tests verificando la modalidad 2v2"}
-satisfied-criteria: ["spec-updated"]
-criterion-statuses: {"spec-updated":["satisfied"],"engine-updated":[],"cli-updated":[],"tests-updated":[]}
+satisfied-criteria: ["spec-updated","engine-updated","cli-updated","tests-updated"]
+criterion-statuses: {"spec-updated":["satisfied"],"engine-updated":["satisfied"],"cli-updated":["satisfied"],"tests-updated":["satisfied"]}
 required-artifacts: []
 child-work-refs: []
 budget-limits: null
@@ -25,9 +25,9 @@ Transicionar el motor de un modelo estrictamente 1v1 a uno basado en equipos (pa
 ## Acceptance criteria
 
 - [x] **spec-updated:** La especificación incluye las reglas de 2v2; stages: satisfied
-- [ ] **engine-updated:** El motor soporta equipos y turnos horarios; stages: none
-- [ ] **cli-updated:** La CLI permite modo 2v2; stages: none
-- [ ] **tests-updated:** Existen tests verificando la modalidad 2v2; stages: none
+- [x] **engine-updated:** El motor soporta equipos y turnos horarios; stages: satisfied
+- [x] **cli-updated:** La CLI permite modo 2v2; stages: satisfied
+- [x] **tests-updated:** Existen tests verificando la modalidad 2v2; stages: satisfied
 
 ## Required artifacts
 

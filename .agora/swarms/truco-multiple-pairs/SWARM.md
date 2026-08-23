@@ -2,7 +2,7 @@
 schema: "agora/swarm/v1"
 id: "truco-multiple-pairs"
 method: "spec-driven"
-status: "ready"
+status: "completed"
 branch: "agora/truco-agora"
 required-roles: ["spec-owner","developer"]
 assignments: {"spec-owner":"project:owner","developer":"project:agent"}
