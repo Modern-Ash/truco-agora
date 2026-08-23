@@ -72,6 +72,46 @@ def test_creacion_invalida_es_422(client, payload):
     assert client.post("/matches", json=payload).status_code == 422
 
 
+# ------------------------------------------------------- api-llm-pluggable
+
+
+def test_agente_con_provider_mock_por_defecto(client):
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "players": [{"name": "A", "kind": "web"},
+                    {"name": "B", "kind": "agent"}],
+    })
+    assert r.status_code == 201  # provider default "mock", sin CLI externo
+
+
+def test_agente_con_provider_desconocido_es_422(client):
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "players": [{"name": "A", "kind": "web"},
+                    {"name": "B", "kind": "agent", "provider": "not-a-provider"}],
+    })
+    assert r.status_code == 422
+    assert "not-a-provider" in r.json()["detail"]
+
+
+def test_agente_con_provider_real_no_crashea_la_creacion(client, monkeypatch):
+    # El adaptador se construye (no shellea nada todavía en __init__); el
+    # partido arranca igual. Se mockea subprocess para no depender de (ni
+    # invocar de verdad) el CLI de claude en el entorno de test.
+    import subprocess
+
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(args=[], returncode=0, stdout="jugar")
+    )
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "players": [{"name": "A", "kind": "web"},
+                    {"name": "B", "kind": "agent", "provider": "claude"}],
+    })
+    assert r.status_code == 201
+
+
 # ---------------------------------------------------- api-estado-visible
 
 

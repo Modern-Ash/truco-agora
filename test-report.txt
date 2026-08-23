@@ -1,13 +1,9 @@
-== pytest (motor+API, incluye v2: flor, envido oficial, tapadas, señas) ==
-65 passed, 1 warning in 6.44s
+........................................................................ [ 80%]
+..................                                                       [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /home/faguero/dev-agora/truco-agora/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
 
-== vitest (webapp v2: flor UI, tapada, señas) ==
-Test Files  2 passed (2)
-Tests       18 passed (18)
-
-== e2e integración HTTP (vite build + uvicorn; señas 2v2, tapada, chico a 15) ==
-
-E2E OK
-
-== vite build ==
-✓ built in 95ms
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+90 passed, 1 warning in 6.37s

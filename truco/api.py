@@ -24,6 +24,7 @@ from .controller import (
     VisibleState,
 )
 from .engine import ENVIDO_ESCALATION, Match, Player, Team, TRUCO_ESCALATION
+from .llm_providers import build_llm_client
 
 
 # ---------------------------------------------------------------- controlador
@@ -197,6 +198,8 @@ class PlayerSpec(BaseModel):
     name: str
     kind: str = "web"            # web | agent
     seed: Optional[int] = None
+    provider: str = "mock"       # mock | claude | codex | opencode | ollama
+    model: Optional[str] = None
 
 
 class CreateMatchRequest(BaseModel):
@@ -442,7 +445,14 @@ def create_match(req: CreateMatchRequest):
             ctrl: PlayerController = WebController(spec.name)
             web_controllers[spec.name] = ctrl
         elif spec.kind == "agent":
-            ctrl = LLMController(spec.name, DeterministicMockLLMClient(spec.seed))
+            if spec.provider == "mock":
+                llm_client = DeterministicMockLLMClient(spec.seed)
+            else:
+                try:
+                    llm_client = build_llm_client(spec.provider, model=spec.model)
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+            ctrl = LLMController(spec.name, llm_client)
         else:
             raise HTTPException(status_code=422,
                                 detail=f"kind inválido: {spec.kind} (web|agent)")
