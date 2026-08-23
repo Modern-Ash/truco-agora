@@ -123,3 +123,27 @@ def test_2v2_turn_rotation():
     match.play_hand()
     # Rotation should be (0+1)%4 = 1
     assert match.mano_index == 1
+
+
+def test_gana_quien_alcanza_el_objetivo_primero_en_la_mano():
+    from truco.cards import Card
+
+    p1 = Player("A", ScriptedController(actions=["envido", "truco"],
+                                        call_responses=["no_quiero"]))
+    p2 = Player("B", ScriptedController(call_responses=["quiero", "no_quiero"]))
+    t1 = Team("T1", [p1])
+    t2 = Team("T2", [p2])
+    p1.team, p2.team = t1, t2
+    match = Match([t1, t2], target_score=15, rng=random.Random(3))
+    t1.score, t2.score = 0, 14  # T2 está a 1 punto de ganar
+
+    def fixed_deal():
+        # T2 tiene mejor envido: al querer, cruza los 15 antes del truco
+        p1.hand = [Card("oro", 12), Card("copa", 11), Card("basto", 10)]
+        p2.hand = [Card("oro", 7), Card("oro", 1), Card("copa", 4)]
+        p1.played, p2.played = [], []
+
+    match._deal = fixed_deal
+    match.play_hand()
+    assert t2.score >= 15
+    assert match.winner is t2  # no T1 aunque ganara la mano por truco

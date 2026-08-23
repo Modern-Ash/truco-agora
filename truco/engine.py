@@ -68,13 +68,19 @@ class Match:
         self.rng = rng or random.Random()
         self.mano_index = 0  # índice del jugador "mano" en self.players
         self.hand_log: List[str] = []
+        self.winner_team: Optional[Team] = None  # primero en alcanzar el objetivo
 
     @property
     def winner(self) -> Optional[Team]:
-        for t in self.teams:
-            if t.score >= self.target_score:
-                return t
-        return None
+        if self.winner_team is not None:
+            return self.winner_team
+        return next((t for t in self.teams if t.score >= self.target_score), None)
+
+    def _award(self, team: Team, points: int) -> None:
+        """Suma puntos registrando al primer equipo que alcanza el objetivo."""
+        team.score += points
+        if self.winner_team is None and team.score >= self.target_score:
+            self.winner_team = team
 
     def play_match(self) -> Team:
         while self.winner is None:
@@ -112,9 +118,9 @@ class Match:
                     self._advance_mano()
                     return
                 if kind == "rechazado":
-                    payload.score += 1
+                    self._award(payload, 1)
                 elif kind == "aceptado":
-                    self._envido_winner().score += payload
+                    self._award(self._envido_winner(), payload)
 
             round_cards: List[tuple[Player, Card]] = []
             for p in order:
@@ -165,7 +171,7 @@ class Match:
         else:
             hand_winner = self._decide_hand_winner(results)
             winner_team = hand_winner.team if hand_winner else self.players[self.mano_index].team
-            winner_team.score += truco_points
+            self._award(winner_team, truco_points)
 
         self._advance_mano()
 
@@ -272,7 +278,7 @@ class Match:
 
     def _settle_fold(self, folded_by: Player, truco_points: int) -> None:
         opp_team = next(t for t in self.teams if t != folded_by.team)
-        opp_team.score += truco_points
+        self._award(opp_team, truco_points)
 
     def _advance_mano(self) -> None:
         self.mano_index = (self.mano_index + 1) % len(self.players)
