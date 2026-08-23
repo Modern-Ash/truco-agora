@@ -210,6 +210,19 @@ def _snapshot(session: MatchSession,
             raise HTTPException(status_code=404, detail="Jugador inexistente")
 
     winner = match.winner
+    # Información pública: quién debe decidir y qué canto está vigente.
+    turn: Optional[str] = None
+    call_vigente: Optional[str] = None
+    for p in match.players:
+        ctrl = p.controller
+        if isinstance(ctrl, WebController):
+            snap = ctrl.snapshot_pending()
+            if snap is not None:
+                turn = p.name
+                call_vigente = snap.get("call") or (
+                    "envido" if snap["decision"] == "offer" else None)
+                break
+
     data = {
         "match_id": session.id,
         "target_score": match.target_score,
@@ -225,6 +238,8 @@ def _snapshot(session: MatchSession,
             for t in match.teams
         ],
         "mano": match.players[match.mano_index].name if winner is None else None,
+        "turn": turn,
+        "call_vigente": call_vigente,
         "others": [],
     }
     for p in match.players:
