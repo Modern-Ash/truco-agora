@@ -31,16 +31,22 @@ export default function Lobby({ onCreated }) {
   const [engine, setEngine] = useState("llm");
   const [engineProvider, setEngineProvider] = useState("mock");
   const [engineModel, setEngineModel] = useState("");
+  const [stepMode, setStepMode] = useState(false);
   const [joinId, setJoinId] = useState("");
   const [error, setError] = useState(null);
+
+  const allAgents = seats.every((s) => s.kind === "agent");
 
   function pickMode(m) {
     setMode(m);
     setSeats(defaultSeats(m));
+    setStepMode(false);
   }
 
   function updateSeat(i, patch) {
-    setSeats(seats.map((s, j) => (j === i ? { ...s, ...patch } : s)));
+    const next = seats.map((s, j) => (j === i ? { ...s, ...patch } : s));
+    setSeats(next);
+    if (!next.every((s) => s.kind === "agent")) setStepMode(false);
   }
 
   async function crear() {
@@ -60,6 +66,7 @@ export default function Lobby({ onCreated }) {
         engine,
         engine_provider: engineProvider,
         engine_model: engineModel || undefined,
+        step_mode: allAgents && stepMode,
         seed: null,
       });
       localStorage.setItem(
@@ -246,6 +253,30 @@ export default function Lobby({ onCreated }) {
               )}
             </div>
           ))}
+        </div>
+
+        <div className="field mb-5">
+          <label
+            className={
+              "flex items-center gap-2 text-sm " +
+              (allAgents ? "cursor-pointer text-tinta" : "cursor-not-allowed text-tinta/40")
+            }
+            data-testid="step-mode-label"
+          >
+            <input
+              type="checkbox"
+              data-testid="step-mode"
+              checked={stepMode && allAgents}
+              disabled={!allAgents}
+              onChange={(e) => setStepMode(e.target.checked)}
+            />
+            Modo paso a paso (espectador) — controlá el ritmo de la partida
+          </label>
+          {!allAgents && (
+            <p className="mt-1 text-xs text-tinta/50">
+              Disponible solo cuando todos los asientos son Agente LLM.
+            </p>
+          )}
         </div>
 
         <button

@@ -1,13 +1,14 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Table from "../src/components/Table.jsx";
-import { getState, postAction, postSena } from "../src/api.js";
+import { getState, postAction, postSena, postStep } from "../src/api.js";
 
 vi.mock("../src/api.js", () => ({
   getState: vi.fn(),
   postAction: vi.fn(),
   postSena: vi.fn(),
+  postStep: vi.fn(),
 }));
 
 const BASE = {
@@ -337,4 +338,79 @@ test("fallo de red transitorio (sin status) no muestra toast de error", async ()
   await user.click(screen.getByTestId("carta-oro-7"));
   await waitFor(() => expect(postAction).toHaveBeenCalled());
   expect(screen.queryByTestId("toast-error")).not.toBeInTheDocument();
+});
+
+// -------------------------------------------------- modo paso a paso
+
+function estadoSpectator(over = {}) {
+  return {
+    ...BASE,
+    teams: [
+      { name: "Equipo 1", score: 0, players: ["Ana"] },
+      { name: "Equipo 2", score: 0, players: ["Beto"] },
+    ],
+    others: [
+      { name: "Ana", team: "Equipo 1", played: [] },
+      { name: "Beto", team: "Equipo 2", played: [] },
+    ],
+    you: null,
+    pending_step: { player: "Ana", kind: "card" },
+    ...over,
+  };
+}
+
+test("vista de espectador con pending_step muestra los controles de paso a paso", () => {
+  const st = estadoSpectator();
+  render(<Table state={st} matchId="m1" seat={null} />);
+  expect(screen.getByTestId("step-controls")).toBeInTheDocument();
+  expect(screen.getByTestId("step-controls")).toHaveTextContent("Ana");
+  expect(screen.getByTestId("step-controls")).toHaveTextContent("jugar una carta");
+});
+
+test("sin pending_step no muestra los controles de paso a paso", () => {
+  const st = estadoSpectator({ pending_step: null });
+  render(<Table state={st} matchId="m1" seat={null} />);
+  expect(screen.queryByTestId("step-controls")).not.toBeInTheDocument();
+});
+
+test("click en 'Siguiente movida' llama a postStep y refresca el estado", async () => {
+  const user = userEvent.setup();
+  const st = estadoSpectator();
+  const after = estadoSpectator({ pending_step: { player: "Beto", kind: "action" } });
+  postStep.mockResolvedValue(after);
+  render(<Table state={st} matchId="m1" seat={null} />);
+
+  await user.click(screen.getByTestId("siguiente-movida"));
+  await waitFor(() => expect(postStep).toHaveBeenCalledWith("m1"));
+  await waitFor(() =>
+    expect(within(screen.getByTestId("step-controls")).getByText(/Beto/)).toBeInTheDocument()
+  );
+});
+
+test("auto-play llama a postStep automáticamente tras el delay elegido", async () => {
+  vi.useFakeTimers();
+  try {
+    const st = estadoSpectator();
+    postStep.mockClear();
+    postStep.mockResolvedValue(estadoSpectator({ pending_step: null }));
+    render(<Table state={st} matchId="m1" seat={null} />);
+
+    fireEvent.click(screen.getByTestId("auto-play"));
+    fireEvent.change(screen.getByTestId("auto-play-delay"), { target: { value: "1000" } });
+
+    expect(postStep).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(postStep).toHaveBeenCalledWith("m1");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("bazas de la mesa se muestran también en vista de espectador", () => {
+  const st = estadoSpectator();
+  st.others[0].played = [{ palo: "oro", numero: 7 }];
+  render(<Table state={st} matchId="m1" seat={null} />);
+  expect(document.querySelector(".mini-carta")).toBeInTheDocument();
 });

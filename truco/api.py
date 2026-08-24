@@ -26,6 +26,7 @@ from .controller import (
 from .engine import ENVIDO_ESCALATION, Match, Player, Team, TRUCO_ESCALATION
 from .llm_engine import LLMEngine
 from .llm_providers import build_llm_client
+from .step_mode import PendingStep, StepGate, SteppedController
 
 
 # ---------------------------------------------------------------- controlador
@@ -158,7 +159,8 @@ class WebController(PlayerController):
 
 class MatchSession:
     def __init__(self, match_id: str, match: Match,
-                 web_controllers: Dict[str, WebController]):
+                 web_controllers: Dict[str, WebController],
+                 step_gate: Optional[StepGate] = None):
         self.id = match_id
         self.match = match
         self.web_controllers = web_controllers
@@ -166,7 +168,31 @@ class MatchSession:
         # Señas compañero→compañero (reglas-v2.md §4): entrega única
         self.senas_inbox: Dict[str, Tuple[str, str]] = {}  # receptor -> (de, seña)
         self.senas_lock = threading.Lock()
+        # Modo paso a paso (docs/step-mode.md): None si la partida no lo usa.
+        self.step_gate = step_gate
+        self.pending_step: Optional[PendingStep] = None
+        # Se incrementa en cada transición de pending_step (incluso si el
+        # contenido nuevo es idéntico al anterior, ej. el mismo jugador
+        # elige carta en dos rondas distintas) — comparar por contenido
+        # llevaría a no detectar el cambio y esperar hasta el timeout.
+        self._step_generation = 0
+        self._step_lock = threading.Lock()
         self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def set_pending_step(self, step: Optional[PendingStep]) -> None:
+        with self._step_lock:
+            self.pending_step = step
+            self._step_generation += 1
+
+    def snapshot_pending_step(self) -> Optional[dict]:
+        with self._step_lock:
+            if self.pending_step is None:
+                return None
+            return {"player": self.pending_step.player, "kind": self.pending_step.kind}
+
+    def step_generation(self) -> int:
+        with self._step_lock:
+            return self._step_generation
 
     def _run(self) -> None:
         try:
@@ -211,6 +237,7 @@ class CreateMatchRequest(BaseModel):
     engine: str = "llm"          # llm (default, docs/llm-engine.md) | deterministic
     engine_provider: str = "mock"   # proveedor LLM para el motor (no para jugadores)
     engine_model: Optional[str] = None
+    step_mode: bool = False      # docs/step-mode.md; requiere todos los jugadores kind=agent
 
 
 class ActionRequest(BaseModel):
@@ -276,12 +303,17 @@ def _snapshot(session: MatchSession,
                     call_vigente = snap.get("call")
                 break
 
+    pending_step = session.snapshot_pending_step()
+    if turn is None and pending_step is not None:
+        turn = pending_step["player"]
+
     data = {
         "match_id": session.id,
         "target_score": match.target_score,
         "finished": winner is not None or session.error is not None,
         "winner": winner.name if winner else None,
         "error": session.error,
+        "pending_step": pending_step,
         "teams": [
             {
                 "name": t.name,
@@ -442,6 +474,23 @@ def create_match(req: CreateMatchRequest):
     if len(set(names)) != len(names):
         raise HTTPException(status_code=422, detail="Nombres duplicados")
 
+    if req.step_mode and any(spec.kind != "agent" for spec in req.players):
+        raise HTTPException(
+            status_code=422,
+            detail="step_mode requiere que todos los jugadores sean kind=agent",
+        )
+
+    step_gate = StepGate() if req.step_mode else None
+    # session no existe todavía en este punto (se crea después de armar los
+    # equipos), pero SteppedController necesita publicar en ella; se resuelve
+    # con este holder, asignado en cuanto la sesión se construye más abajo.
+    session_holder: Dict[str, Optional["MatchSession"]] = {"session": None}
+
+    def _publish_pending_step(step: Optional[PendingStep]) -> None:
+        session = session_holder["session"]
+        if session is not None:
+            session.set_pending_step(step)
+
     web_controllers: Dict[str, WebController] = {}
     players: List[Player] = []
     for i, spec in enumerate(req.players):
@@ -457,6 +506,8 @@ def create_match(req: CreateMatchRequest):
                 except ValueError as exc:
                     raise HTTPException(status_code=422, detail=str(exc)) from exc
             ctrl = LLMController(spec.name, llm_client)
+            if step_gate is not None:
+                ctrl = SteppedController(spec.name, ctrl, step_gate, _publish_pending_step)
         else:
             raise HTTPException(status_code=422,
                                 detail=f"kind inválido: {spec.kind} (web|agent)")
@@ -482,7 +533,8 @@ def create_match(req: CreateMatchRequest):
                             detail=f"engine debe ser 'llm' o 'deterministic': {req.engine!r}")
 
     match_id = uuid.uuid4().hex[:12]
-    session = MatchSession(match_id, match, web_controllers)
+    session = MatchSession(match_id, match, web_controllers, step_gate=step_gate)
+    session_holder["session"] = session
     with _registry_lock:
         _sessions[match_id] = session
     session.thread.start()
@@ -512,6 +564,40 @@ def post_action(match_id: str, req: ActionRequest):
     # estado fresco (la decisión puede haber cambiado de jugador).
     controller.wait_consumed()
     return _snapshot(session, req.player)
+
+
+def _wait_for_step_resolution(session: MatchSession, before_generation: int,
+                               timeout: float = 60.0) -> None:
+    """Espera a que la movida liberada se resuelva: cambia la generación de
+    pending_step (no el contenido — dos movidas seguidas del mismo jugador
+    pidiendo el mismo tipo de decisión, ej. elegir carta en la ronda 2 tras
+    haberlo hecho en la ronda 1, producen un dict idéntico), o la partida
+    termina. `timeout` cubre el caso de un proveedor LLM real lento (ver
+    llm_providers.DEFAULT_TIMEOUT_SECONDS)."""
+    import time as _time
+
+    deadline = _time.monotonic() + timeout
+    while _time.monotonic() < deadline:
+        if (session.step_generation() != before_generation
+                or session.match.winner is not None
+                or session.error is not None):
+            return
+        threading.Event().wait(timeout=0.02)
+
+
+@app.post("/matches/{match_id}/step")
+def post_step(match_id: str):
+    session = get_session(match_id)
+    if session.step_gate is None:
+        raise HTTPException(status_code=422,
+                            detail="Esta partida no está en modo paso a paso")
+    if session.snapshot_pending_step() is None:
+        raise HTTPException(status_code=404,
+                            detail="No hay ninguna movida pendiente ahora mismo")
+    before_generation = session.step_generation()
+    session.step_gate.open()
+    _wait_for_step_resolution(session, before_generation)
+    return _snapshot(session, None)
 
 
 @app.post("/matches/{match_id}/senas", status_code=201)

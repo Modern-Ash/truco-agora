@@ -48,6 +48,7 @@ test("crear partida llama a la API con la configuración elegida", async () => {
     engine: "llm",
     engine_provider: "mock",
     engine_model: undefined,
+    step_mode: false,
     seed: null,
   });
 });
@@ -117,4 +118,45 @@ test("marcar un asiento como agente muestra proveedor/modelo y se envía kind ag
       })
     )
   );
+});
+
+// -------------------------------------------------- modo paso a paso
+
+test("checkbox de paso a paso está deshabilitado por defecto (asientos humanos)", () => {
+  render(<Lobby />);
+  expect(screen.getByTestId("step-mode")).toBeDisabled();
+  expect(screen.getByTestId("step-mode")).not.toBeChecked();
+});
+
+test("se habilita al marcar todos los asientos como agente, y se envía step_mode", async () => {
+  const user = userEvent.setup();
+  createMatch.mockResolvedValue({ match_id: "abc" });
+  render(<Lobby onCreated={vi.fn()} />);
+
+  await user.click(screen.getByTestId("seat-0-kind-agent"));
+  await user.click(screen.getByTestId("seat-1-kind-agent"));
+  expect(screen.getByTestId("step-mode")).not.toBeDisabled();
+
+  await user.click(screen.getByTestId("step-mode"));
+  await user.click(screen.getByTestId("crear"));
+
+  await waitFor(() =>
+    expect(createMatch).toHaveBeenCalledWith(
+      expect.objectContaining({ step_mode: true })
+    )
+  );
+});
+
+test("volver a marcar un asiento como humano desactiva el paso a paso", async () => {
+  const user = userEvent.setup();
+  render(<Lobby />);
+
+  await user.click(screen.getByTestId("seat-0-kind-agent"));
+  await user.click(screen.getByTestId("seat-1-kind-agent"));
+  await user.click(screen.getByTestId("step-mode"));
+  expect(screen.getByTestId("step-mode")).toBeChecked();
+
+  await user.click(screen.getByTestId("seat-0-kind-web"));
+  expect(screen.getByTestId("step-mode")).toBeDisabled();
+  expect(screen.getByTestId("step-mode")).not.toBeChecked();
 });

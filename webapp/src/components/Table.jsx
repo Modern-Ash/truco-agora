@@ -2,10 +2,22 @@ import React, { useEffect, useState } from "react";
 import Hand from "./Hand.jsx";
 import Actions from "./Actions.jsx";
 import Scoreboard from "./Scoreboard.jsx";
-import { createMatch, getState, postAction, postSena } from "../api.js";
+import { createMatch, getState, postAction, postSena, postStep } from "../api.js";
 import SuitIcon from "./SuitIcon.jsx";
 
 const SENAS = ["guiño", "lengua", "ceja", "beso", "suspiro"];
+
+const STEP_KIND_LABEL = {
+  action: "elegir una acción",
+  card: "jugar una carta",
+  response: "responder un canto",
+};
+
+const AUTOPLAY_DELAYS = [
+  { ms: 1000, label: "1s" },
+  { ms: 2000, label: "2s" },
+  { ms: 4000, label: "4s" },
+];
 
 export default function Table({ state: propState, matchId, seat }) {
   const [state, setState] = useState(propState);
@@ -14,10 +26,38 @@ export default function Table({ state: propState, matchId, seat }) {
   const [senaAbierta, setSenaAbierta] = useState(false);
   const [toast, setToast] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const [autoDelay, setAutoDelay] = useState(2000);
+  const [stepping, setStepping] = useState(false);
 
   useEffect(() => {
     setState(propState);
   }, [propState]);
+
+  const pendingStep = state.pending_step;
+
+  async function step() {
+    if (stepping) return;
+    setStepping(true);
+    try {
+      setState(await postStep(matchId));
+    } catch {
+      // el polling repone el estado real si algo falla en el medio
+    } finally {
+      setStepping(false);
+    }
+  }
+
+  // Auto-play (docs/step-mode.md): re-programa el próximo step con el
+  // delay elegido, en vez de un setInterval fijo — así respeta el tiempo
+  // real que tarda cada agente en decidir (puede variar mucho entre
+  // proveedores) en lugar de superponer pedidos.
+  useEffect(() => {
+    if (!autoPlay || !pendingStep || state.finished) return;
+    const t = setTimeout(() => { step(); }, autoDelay);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, autoDelay, pendingStep?.player, pendingStep?.kind, state.finished]);
 
   // Entrega de señas (reglas-v2.md §4): mostrar y auto-ocultar
   useEffect(() => {
@@ -164,7 +204,64 @@ export default function Table({ state: propState, matchId, seat }) {
             data-testid="centro"
           >
             {!you && (
-              <span className="hint italic text-[#bfd8c6]">vista de espectador</span>
+              <div className="flex flex-col items-center gap-3">
+                <span className="hint italic text-[#bfd8c6]">vista de espectador</span>
+                {others.length > 0 && (
+                  <div className="bazas flex flex-col gap-2 rounded-xl bg-black/15 px-4 py-3">
+                    {others.map((o) => (
+                      <BazaRow key={o.name} name={o.name} cards={o.played} />
+                    ))}
+                  </div>
+                )}
+                {pendingStep && (
+                  <div
+                    className="step-controls flex flex-col items-center gap-2 rounded-xl
+                               bg-black/25 px-4 py-3"
+                    data-testid="step-controls"
+                  >
+                    <p className="text-sm text-crema">
+                      Próxima movida: <strong>{pendingStep.player}</strong> va a{" "}
+                      {STEP_KIND_LABEL[pendingStep.kind] || pendingStep.kind}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        data-testid="siguiente-movida"
+                        disabled={stepping}
+                        onClick={step}
+                        className="rounded-full bg-oro px-4 py-1.5 text-sm font-bold
+                                   text-tinta shadow transition
+                                   disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {stepping ? "Jugando…" : "Siguiente movida"}
+                      </button>
+                      <label className="flex items-center gap-1 text-xs text-crema">
+                        <input
+                          type="checkbox"
+                          data-testid="auto-play"
+                          checked={autoPlay}
+                          onChange={(e) => setAutoPlay(e.target.checked)}
+                        />
+                        Auto-play
+                      </label>
+                      <select
+                        data-testid="auto-play-delay"
+                        value={autoDelay}
+                        disabled={!autoPlay}
+                        onChange={(e) => setAutoDelay(Number(e.target.value))}
+                        className="rounded border border-crema/30 bg-transparent
+                                   px-1 py-0.5 text-xs text-crema disabled:opacity-50"
+                      >
+                        {AUTOPLAY_DELAYS.map((d) => (
+                          <option key={d.ms} value={d.ms} className="text-tinta">
+                            {d.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             {you && (
               <div className="bazas flex flex-col gap-2 rounded-xl bg-black/15 px-4 py-3">

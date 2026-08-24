@@ -13,5 +13,9 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: "./tests/setup.js",
+    // Sin esto, vi.fn() de vi.mock() acarrea llamadas entre tests del mismo
+    // archivo (ver mesa.test.jsx: un test de auto-play/timers detectó esto
+    // al chocar con una llamada de un test previo que seguía en el historial).
+    clearMocks: true,
   },
 });
