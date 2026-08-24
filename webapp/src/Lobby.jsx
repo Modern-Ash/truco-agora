@@ -9,12 +9,12 @@ const DEFAULT_NAMES = {
 export const LLM_PROVIDERS = ["mock", "claude", "codex", "opencode", "ollama"];
 
 const SEG_BTN = "seg-btn flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 " +
-  "font-serif-display text-sm text-tinta shadow-sm transition hover:border-paño " +
+  "font-serif-display text-sm text-tinta shadow-sm transition hover:border-pano " +
   "hover:shadow";
-const SEG_BTN_ON = SEG_BTN + " on !bg-paño !text-white !border-paño shadow-md";
+const SEG_BTN_ON = SEG_BTN + " on bg-pano! text-white! border-pano! shadow-md";
 const INPUT = "block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 " +
-  "text-sm text-tinta shadow-sm outline-none transition focus:border-paño " +
-  "focus:ring-2 focus:ring-paño/30";
+  "text-sm text-tinta shadow-sm outline-none transition focus:border-pano " +
+  "focus:ring-2 focus:ring-pano/30";
 
 function defaultSeat(name) {
   return { name, kind: "web", provider: "mock", model: "" };
@@ -212,7 +212,7 @@ export default function Lobby({ onCreated }) {
                     type="button"
                     data-testid={`seat-${i}-kind-${k}`}
                     className={
-                      (k === s.kind ? SEG_BTN_ON : SEG_BTN) + " !py-1.5 !text-xs"
+                      (k === s.kind ? SEG_BTN_ON : SEG_BTN) + " py-1.5! text-xs!"
                     }
                     onClick={() => updateSeat(i, { kind: k })}
                   >
@@ -250,7 +250,7 @@ export default function Lobby({ onCreated }) {
 
         <button
           type="button"
-          className="primary w-full rounded-xl bg-paño py-3 font-bold text-white
+          className="primary w-full rounded-xl bg-pano py-3 font-bold text-white
                      shadow-md transition hover:brightness-110 active:scale-[0.99]"
           data-testid="crear"
           onClick={crear}
@@ -276,7 +276,7 @@ export default function Lobby({ onCreated }) {
             onClick={unirse}
             className="rounded-lg border border-stone-300 bg-white px-4 py-2
                        text-sm font-semibold text-tinta shadow-sm transition
-                       hover:border-paño hover:shadow"
+                       hover:border-pano hover:shadow"
           >
             Entrar
           </button>

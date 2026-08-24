@@ -1,5 +1,6 @@
 import React from "react";
-import { paloGlyph } from "../cartas.js";
+import { paloName } from "../cartas.js";
+import SuitIcon from "./SuitIcon.jsx";
 
 export function CardFace({ card, onClick, disabled, testid }) {
   return (
@@ -17,7 +18,10 @@ export function CardFace({ card, onClick, disabled, testid }) {
       onClick={onClick}
     >
       <span className="carta-num text-xl font-bold">{card.numero}</span>
-      <span className="carta-glyph text-3xl leading-none">{paloGlyph(card.palo)}</span>
+      <SuitIcon palo={card.palo} className="carta-glyph h-8 w-8" />
+      <span className="carta-palo text-[0.6rem] font-bold uppercase tracking-wide">
+        {paloName(card.palo)}
+      </span>
     </button>
   );
 }

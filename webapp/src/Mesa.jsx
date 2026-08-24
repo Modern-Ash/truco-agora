@@ -77,7 +77,7 @@ function SeatPicker({ matchId, state, onPick }) {
             data-testid={`seat-choice-${s.name}`}
             className="seat-btn mb-2 block w-full rounded-lg border border-stone-300
                        bg-white px-3 py-2.5 text-left shadow-sm transition
-                       hover:border-paño hover:shadow"
+                       hover:border-pano hover:shadow"
             onClick={() => pick(s.name)}
           >
             🪑 {s.name} <small className="text-stone-500">({s.team})</small>

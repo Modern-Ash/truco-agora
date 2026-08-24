@@ -3,7 +3,7 @@ import Hand from "./Hand.jsx";
 import Actions from "./Actions.jsx";
 import Scoreboard from "./Scoreboard.jsx";
 import { createMatch, getState, postAction, postSena } from "../api.js";
-import { paloGlyph } from "../cartas.js";
+import SuitIcon from "./SuitIcon.jsx";
 
 const SENAS = ["guiño", "lengua", "ceja", "beso", "suspiro"];
 
@@ -111,6 +111,27 @@ export default function Table({ state: propState, matchId, seat }) {
         </div>
       </div>
 
+      {!state.finished && state.turn && (
+        <div
+          className={
+            "turn-banner mx-auto mb-1 flex items-center gap-2 rounded-full px-5 py-2 " +
+            "font-serif-display text-sm font-bold shadow-lg shadow-black/30 " +
+            (myTurn
+              ? "bg-oro text-tinta animate-pulso"
+              : "bg-black/35 text-crema")
+          }
+          data-testid="turn-banner"
+        >
+          <span
+            className={
+              "inline-block h-2.5 w-2.5 rounded-full " +
+              (myTurn ? "bg-tinta" : "bg-oro animate-pulse")
+            }
+          />
+          {myTurn ? "¡Tu turno! Jugá una carta o cantá algo." : `Turno de ${state.turn}`}
+        </div>
+      )}
+
       <div className="paño flex flex-1 flex-col px-4">
         {/* compañero enfrente en 2v2 */}
         {partner && (
@@ -186,8 +207,8 @@ export default function Table({ state: propState, matchId, seat }) {
           <div className="mi-zona flex flex-col items-center gap-2" data-testid="mi-zona">
             <div className="quien text-base text-crema">
               <strong>{seat}</strong>
-              {state.mano === seat && <span className="chip">MANO</span>}
-              {myTurn && <span className="chip turno">TU TURNO</span>}
+              {state.mano === seat && <span className="chip inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta">MANO</span>}
+              {myTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta bg-oro! animate-pulso">TU TURNO</span>}
             </div>
             {state.call_vigente && !state.finished && (
               <p
@@ -199,8 +220,14 @@ export default function Table({ state: propState, matchId, seat }) {
             )}
             {you.pending ? (
               <Actions pending={you.pending} onAction={(p) => send(p)} />
+            ) : myTurn ? (
+              <p className="text-crema">Es tu turno: jugá una carta.</p>
             ) : (
-              myTurn && <p className="text-crema">Es tu turno: jugá una carta.</p>
+              !state.finished && (
+                <p className="text-sm italic text-crema/70" data-testid="esperando">
+                  Esperando a {state.turn}…
+                </p>
+              )
             )}
             {myTurn && (
               <label
@@ -308,14 +335,14 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
         `slot ${side} ${isTurn ? "turno" : ""} min-w-[120px] rounded-xl ` +
         `bg-black/18 px-3 py-2 outline outline-2 outline-transparent ` +
         `transition-shadow duration-200 ${sideClass} ` +
-        (isTurn ? "shadow-[0_0_14px_rgba(255,215,110,0.45)] !outline-oro" : "")
+        (isTurn ? "shadow-[0_0_14px_rgba(255,215,110,0.45)] outline-oro!" : "")
       }
       data-testid={dataTestid}
     >
       <div className="nombre-jugador text-[0.95rem] text-crema">
         {player.name}
-        {isMano && <span className="chip">MANO</span>}
-        {isTurn && <span className="chip turno">JUGANDO</span>}
+        {isMano && <span className="chip inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta">MANO</span>}
+        {isTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta bg-oro! animate-pulso">JUGANDO</span>}
       </div>
       {onSena && (
         <div className="zona-senas relative inline-block">
@@ -380,11 +407,11 @@ function BazaRow({ name, cards, own }) {
           ) : (
             <span
               key={i}
-              className={`mini-carta palo-${c.palo} animate-jugar rounded bg-crema
-                          px-1.5 py-0.5 text-sm shadow-md shadow-black/40`}
+              className={`mini-carta palo-${c.palo} animate-jugar flex items-center gap-1
+                          rounded bg-crema px-1.5 py-0.5 text-sm shadow-md shadow-black/40`}
             >
               <b>{c.numero}</b>
-              {paloGlyph(c.palo)}
+              <SuitIcon palo={c.palo} className="h-3.5 w-3.5" />
             </span>
           )
         )}

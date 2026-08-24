@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paño: #1c6b3c;
-  --color-paño-oscuro: #14522d;
+  --color-pano: #1c6b3c;
+  --color-pano-oscuro: #14522d;
   --color-madera: #5a3820;
   --color-crema: #f7f1e3;
   --color-tinta: #2a2118;
@@ -34,7 +34,7 @@ body {
 .animate-pulso { animation: pulso 1.2s infinite; }
 
 .mesa-bg {
-  background: radial-gradient(ellipse at center, var(--color-paño) 0%, var(--color-paño-oscuro) 75%);
+  background: radial-gradient(ellipse at center, var(--color-pano) 0%, var(--color-pano-oscuro) 75%);
 }
 
 .carta.palo-oro { color: #9a7b00; }

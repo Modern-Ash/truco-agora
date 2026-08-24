@@ -62,6 +62,32 @@ test("indica turno propio con chip MANO y resalta al que juega", () => {
   expect(screen.getByText("TU TURNO")).toBeInTheDocument();
 });
 
+test("banner de turno muestra '¡Tu turno!' cuando te toca a vos", () => {
+  const st = estado1v1({ turn: "Ana" });
+  st.you.pending = { decision: "action", options: ["jugar"], call: null };
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.getByTestId("turn-banner")).toHaveTextContent("¡Tu turno!");
+});
+
+test("banner de turno muestra el nombre del rival cuando no te toca a vos", () => {
+  const st = estado1v1({ turn: "Beto" });
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.getByTestId("turn-banner")).toHaveTextContent("Turno de Beto");
+});
+
+test("muestra 'esperando a X' cuando no es tu turno y no hay decisión pendiente", () => {
+  const st = estado1v1({ turn: "Beto" });
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.getByTestId("esperando")).toHaveTextContent("Esperando a Beto");
+});
+
+test("no muestra banner de turno ni 'esperando' cuando la partida terminó", () => {
+  const st = estado1v1({ finished: true, winner: "Equipo 1", turn: null, mano: null });
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.queryByTestId("turn-banner")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("esperando")).not.toBeInTheDocument();
+});
+
 test("jugar una carta llama a la API y refresca el estado", async () => {
   const user = userEvent.setup();
   const jugado = estado1v1({ turn: "Ana" });
