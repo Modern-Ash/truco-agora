@@ -92,6 +92,31 @@ button.primary:hover { filter: brightness(1.1); }
 }
 .seat-btn:hover { border-color: var(--paño); }
 
+.seat-config {
+  border: 1px solid #c9bda4;
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.seat-config input { margin-bottom: 0.4rem; }
+
+.seg.small .seg-btn { padding: 0.3rem; font-size: 0.8rem; }
+
+.engine-config {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+.engine-config select,
+.engine-config input {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #c9bda4;
+  border-radius: 6px;
+  background: white;
+  font: inherit;
+}
+
 /* ---------- mesa ---------- */
 .mesa {
   min-height: 100vh;

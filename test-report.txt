@@ -1,9 +1,13 @@
-........................................................................ [ 71%]
-.............................                                            [100%]
-=============================== warnings summary ===============================
-.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
-  /home/faguero/dev-agora/truco-agora/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
-    from starlette.testclient import TestClient as TestClient  # noqa
 
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-101 passed, 1 warning in 6.36s
+> webapp@0.0.0 test
+> vitest run --run
+
+
+ RUN  v4.1.11 /home/faguero/dev-agora/truco-agora/webapp
+
+
+ Test Files  2 passed (2)
+      Tests  25 passed (25)
+   Start at  00:20:18
+   Duration  1.00s (transform 125ms, setup 76ms, import 252ms, tests 644ms, environment 841ms)
+
