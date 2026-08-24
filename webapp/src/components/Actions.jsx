@@ -36,12 +36,23 @@ export default function Actions({ pending, onAction }) {
   }
 
   return (
-    <div className="acciones" data-testid="acciones">
+    <div
+      className="acciones flex flex-wrap justify-center gap-2"
+      data-testid="acciones"
+    >
       {buttons.map((opt) => (
         <button
+          type="button"
           key={opt}
           data-testid={`accion-${opt}`}
-          className={`accion ${opt.startsWith("no_") ? "neg" : "pos"}`}
+          className={
+            `accion ${opt.startsWith("no_") ? "neg" : "pos"} ` +
+            "rounded-full px-5 py-2 font-serif-display font-bold shadow-lg " +
+            "shadow-black/35 transition hover:brightness-107 " +
+            (opt.startsWith("no_")
+              ? "bg-rojo text-white"
+              : "bg-crema text-tinta")
+          }
           onClick={() =>
             onAction(
               decision === "offer"

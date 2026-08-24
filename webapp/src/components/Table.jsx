@@ -94,20 +94,24 @@ export default function Table({ state: propState, matchId, seat }) {
   }
 
   return (
-    <main className="mesa" data-testid="mesa">
-      <div className="topbar">
+    <main className="mesa mesa-bg flex min-h-screen flex-col" data-testid="mesa">
+      <div className="topbar flex items-start justify-between px-4 py-3">
         <Scoreboard
           teams={state.teams}
           target={state.target_score}
           winner={state.winner}
           finished={state.finished}
         />
-        <div className="mazo" data-testid="mazo" title="Mazo">
+        <div
+          className="mazo select-none text-4xl text-crema drop-shadow-md"
+          data-testid="mazo"
+          title="Mazo"
+        >
           🂠
         </div>
       </div>
 
-      <div className="paño">
+      <div className="paño flex flex-1 flex-col px-4">
         {/* compañero enfrente en 2v2 */}
         {partner && (
           <PlayerSlot
@@ -123,7 +127,7 @@ export default function Table({ state: propState, matchId, seat }) {
           />
         )}
 
-        <div className="fila-media">
+        <div className="fila-media flex flex-1 items-stretch gap-3">
           {rivals[0] && (
             <PlayerSlot
               player={rivals[0]}
@@ -134,20 +138,23 @@ export default function Table({ state: propState, matchId, seat }) {
             />
           )}
 
-          <div className="centro" data-testid="centro">
-            {!you && <span className="hint">vista de espectador</span>}
+          <div
+            className="centro flex flex-1 items-center justify-center"
+            data-testid="centro"
+          >
+            {!you && (
+              <span className="hint italic text-[#bfd8c6]">vista de espectador</span>
+            )}
             {you && (
-              <>
-                <div className="bazas">
-                  {rivals.map((r) => (
-                    <BazaRow key={r.name} name={r.name} cards={r.played} />
-                  ))}
-                  {partner && (
-                    <BazaRow name={partner.name} cards={partner.played} />
-                  )}
-                  <BazaRow name={you.name} cards={you.played} own />
-                </div>
-              </>
+              <div className="bazas flex flex-col gap-2 rounded-xl bg-black/15 px-4 py-3">
+                {rivals.map((r) => (
+                  <BazaRow key={r.name} name={r.name} cards={r.played} />
+                ))}
+                {partner && (
+                  <BazaRow name={partner.name} cards={partner.played} />
+                )}
+                <BazaRow name={you.name} cards={you.played} own />
+              </div>
             )}
           </div>
 
@@ -174,26 +181,33 @@ export default function Table({ state: propState, matchId, seat }) {
         )}
       </div>
 
-      <div className="pie">
+      <div className="pie flex justify-center px-4 pb-6 pt-2">
         {you && (
-          <div className="mi-zona" data-testid="mi-zona">
-            <div className="quien">
+          <div className="mi-zona flex flex-col items-center gap-2" data-testid="mi-zona">
+            <div className="quien text-base text-crema">
               <strong>{seat}</strong>
               {state.mano === seat && <span className="chip">MANO</span>}
               {myTurn && <span className="chip turno">TU TURNO</span>}
             </div>
             {state.call_vigente && !state.finished && (
-              <p className="banner-canto" data-testid="banner-canto">
+              <p
+                className="banner-canto rounded-full bg-black/30 px-4 py-1.5 text-sm text-oro"
+                data-testid="banner-canto"
+              >
                 {bannerTexto(state, seat)}
               </p>
             )}
             {you.pending ? (
               <Actions pending={you.pending} onAction={(p) => send(p)} />
             ) : (
-              myTurn && <p>Es tu turno: jugá una carta.</p>
+              myTurn && <p className="text-crema">Es tu turno: jugá una carta.</p>
             )}
             {myTurn && (
-              <label className="toggle-tapada" data-testid="toggle-tapada">
+              <label
+                className="toggle-tapada inline-flex cursor-pointer items-center
+                           gap-1.5 text-sm text-crema"
+                data-testid="toggle-tapada"
+              >
                 <input
                   type="checkbox"
                   checked={tapada}
@@ -208,25 +222,49 @@ export default function Table({ state: propState, matchId, seat }) {
       </div>
 
       {toast && (
-        <div className="toast-sena" data-testid="toast-sena">
+        <div
+          className="toast-sena animate-jugar fixed bottom-38 left-1/2 z-40
+                     -translate-x-1/2 rounded-full bg-oro px-5 py-2 font-bold
+                     text-tinta shadow-xl shadow-black/45"
+          data-testid="toast-sena"
+        >
           {toast}
         </div>
       )}
 
       {actionError && (
-        <div className="toast-error" data-testid="toast-error">
+        <div
+          className="toast-error animate-jugar fixed bottom-52 left-1/2 z-40
+                     -translate-x-1/2 rounded-full bg-red-700 px-5 py-2 font-bold
+                     text-white shadow-xl shadow-black/45"
+          data-testid="toast-error"
+        >
           {actionError}
         </div>
       )}
 
       {state.finished && (
-        <div className="overlay" data-testid="fin-partida">
-          <h2>{state.error ? "Partida interrumpida" : `🏆 Ganó ${state.winner}`}</h2>
-          <button onClick={revancha}>Revancha</button>
+        <div
+          className="overlay fixed inset-0 flex flex-col items-center justify-center
+                     gap-4 bg-[#0a140e]/90 text-crema"
+          data-testid="fin-partida"
+        >
+          <h2 className="text-2xl font-bold">
+            {state.error ? "Partida interrumpida" : `🏆 Ganó ${state.winner}`}
+          </h2>
           <button
+            type="button"
+            onClick={revancha}
+            className="rounded-full bg-oro px-8 py-2.5 font-bold text-tinta shadow-lg"
+          >
+            Revancha
+          </button>
+          <button
+            type="button"
             onClick={() => {
               window.location.href = "/";
             }}
+            className="rounded-full border border-crema px-8 py-2.5 font-bold text-crema"
           >
             Lobby
           </button>
@@ -258,20 +296,33 @@ function bannerTexto(state, seat) {
 
 function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
                       onSena, senaAbierta, senas, onElegirSena }) {
+  const sideClass = {
+    top: "self-center",
+    bottom: "self-center",
+    left: "self-start mt-[15vh]",
+    right: "self-start mt-[15vh]",
+  }[side];
   return (
     <div
-      className={`slot ${side} ${isTurn ? "turno" : ""}`}
+      className={
+        `slot ${side} ${isTurn ? "turno" : ""} min-w-[120px] rounded-xl ` +
+        `bg-black/18 px-3 py-2 outline outline-2 outline-transparent ` +
+        `transition-shadow duration-200 ${sideClass} ` +
+        (isTurn ? "shadow-[0_0_14px_rgba(255,215,110,0.45)] !outline-oro" : "")
+      }
       data-testid={dataTestid}
     >
-      <div className="nombre-jugador">
+      <div className="nombre-jugador text-[0.95rem] text-crema">
         {player.name}
         {isMano && <span className="chip">MANO</span>}
         {isTurn && <span className="chip turno">JUGANDO</span>}
       </div>
       {onSena && (
-        <div className="zona-senas">
+        <div className="zona-senas relative inline-block">
           <button
-            className="btn-sena"
+            type="button"
+            className="btn-sena rounded-full bg-crema px-3 py-1 text-xs font-normal
+                       text-tinta opacity-85 transition hover:opacity-100"
             data-testid={`btn-sena-${player.name}`}
             onClick={onSena}
             title="Enviar una seña a tu compañero"
@@ -279,9 +330,20 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
             😉 Seña
           </button>
           {senaAbierta && (
-            <div className="paleta-senas" data-testid="paleta-senas">
+            <div
+              className="paleta-senas absolute left-1/2 top-[calc(100%+6px)] z-30
+                         flex -translate-x-1/2 gap-1 rounded-full border
+                         border-crema/35 bg-tinta px-2 py-1"
+              data-testid="paleta-senas"
+            >
               {senas.map((s) => (
-                <button key={s} onClick={() => onElegirSena(s)}>
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => onElegirSena(s)}
+                  className="rounded-full px-2 py-1 text-xs text-crema
+                             transition hover:bg-white/15"
+                >
                   {s}
                 </button>
               ))}
@@ -295,16 +357,32 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
 
 function BazaRow({ name, cards, own }) {
   return (
-    <div className={`baza-row ${own ? "propia" : ""}`}>
-      <span className="baza-nombre">{name}</span>
-      <div className="baza-cartas">
+    <div className={`baza-row flex items-center gap-2 ${own ? "propia flex-row-reverse" : ""}`}>
+      <span
+        className={
+          "baza-nombre w-21 text-xs text-[#cfe6d5] " +
+          (own ? "text-left" : "text-right")
+        }
+      >
+        {name}
+      </span>
+      <div className="baza-cartas flex min-h-[34px] gap-1">
         {(cards || []).map((c, i) =>
           c.tapada ? (
-            <span key={i} className="mini-carta tapada" title="Carta boca abajo">
+            <span
+              key={i}
+              className="mini-carta tapada animate-jugar rounded bg-[#1e4d3a]
+                         px-1.5 py-0.5 text-lg text-crema/75 shadow-md shadow-black/40"
+              title="Carta boca abajo"
+            >
               🂠
             </span>
           ) : (
-            <span key={i} className={`mini-carta palo-${c.palo}`}>
+            <span
+              key={i}
+              className={`mini-carta palo-${c.palo} animate-jugar rounded bg-crema
+                          px-1.5 py-0.5 text-sm shadow-md shadow-black/40`}
+            >
               <b>{c.numero}</b>
               {paloGlyph(c.palo)}
             </span>

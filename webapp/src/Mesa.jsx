@@ -22,8 +22,11 @@ export default function Mesa({ matchId }) {
 
   if (error) {
     return (
-      <main className="mesa">
-        <p className="err" data-testid="conn-error">
+      <main className="mesa mesa-bg flex min-h-screen items-center justify-center">
+        <p
+          className="err rounded-full bg-black/30 px-4 py-2 text-crema"
+          data-testid="conn-error"
+        >
           Sin conexión con la mesa ({error.message}). Reintentando…
         </p>
       </main>
@@ -31,8 +34,8 @@ export default function Mesa({ matchId }) {
   }
   if (!state) {
     return (
-      <main className="mesa">
-        <p>Abriendo la mesa…</p>
+      <main className="mesa mesa-bg flex min-h-screen items-center justify-center">
+        <p className="text-crema">Abriendo la mesa…</p>
       </main>
     );
   }
@@ -55,18 +58,29 @@ function SeatPicker({ matchId, state, onPick }) {
     onPick(name);
   }
   return (
-    <main className="lobby" data-testid="seat-picker">
-      <h1>Elegí tu asiento</h1>
-      <p className="sub">Partida {matchId}</p>
-      <section className="panel">
+    <main
+      className="lobby mx-auto min-h-screen max-w-lg px-4 py-16 sm:py-24"
+      data-testid="seat-picker"
+    >
+      <h1 className="text-center font-serif-display text-3xl font-bold text-crema
+                      drop-shadow-md">
+        Elegí tu asiento
+      </h1>
+      <p className="sub mb-8 text-center text-sm text-stone-300">
+        Partida {matchId}
+      </p>
+      <section className="panel rounded-2xl bg-crema p-6 shadow-2xl shadow-black/40">
         {seats.map((s) => (
           <button
+            type="button"
             key={s.name}
             data-testid={`seat-choice-${s.name}`}
-            className="seat-btn"
+            className="seat-btn mb-2 block w-full rounded-lg border border-stone-300
+                       bg-white px-3 py-2.5 text-left shadow-sm transition
+                       hover:border-paño hover:shadow"
             onClick={() => pick(s.name)}
           >
-            🪑 {s.name} <small>({s.team})</small>
+            🪑 {s.name} <small className="text-stone-500">({s.team})</small>
           </button>
         ))}
       </section>
