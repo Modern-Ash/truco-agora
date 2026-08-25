@@ -107,6 +107,16 @@ export default function Table({ state: propState, matchId, seat }) {
     setTapada(false); // la jugada boca abajo es por única vez
   }
 
+  async function copiarInvitacion() {
+    const link = `${window.location.origin}/mesa?match=${matchId}`;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      /* portapapeles no disponible: el link igual queda visible abajo */
+    }
+    setToast("Invitación copiada");
+  }
+
   async function mandarSena(sena) {
     setSenaAbierta(false);
     try {
@@ -325,9 +335,24 @@ export default function Table({ state: propState, matchId, seat }) {
               <p className="text-crema">Es tu turno: jugá una carta.</p>
             ) : (
               !state.finished && (
-                <p className="text-sm italic text-crema/70" data-testid="esperando">
-                  Esperando a {state.turn}…
-                </p>
+                <div className="flex flex-col items-center gap-1.5">
+                  <p className="text-sm italic text-crema/70" data-testid="esperando">
+                    Esperando a {state.turn}…
+                  </p>
+                  <p className="text-xs text-crema/45">
+                    ¿Jugás los dos asientos vos? Abrí la invitación en otra
+                    pestaña de incógnito y elegí "{state.turn}".
+                  </p>
+                  <button
+                    type="button"
+                    data-testid="copiar-invitacion"
+                    onClick={copiarInvitacion}
+                    className="glass-panel rounded-full px-3 py-1 text-xs text-teal
+                               transition hover:border-teal/40!"
+                  >
+                    Copiar invitación
+                  </button>
+                </div>
               )
             )}
             {myTurn && (
