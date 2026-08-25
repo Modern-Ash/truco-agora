@@ -238,6 +238,7 @@ class CreateMatchRequest(BaseModel):
     engine_provider: str = "mock"   # proveedor LLM para el motor (no para jugadores)
     engine_model: Optional[str] = None
     step_mode: bool = False      # docs/step-mode.md; requiere todos los jugadores kind=agent
+    team_names: Optional[List[str]] = None  # 2 nombres; si falta, "Equipo 1"/"Equipo 2"
 
 
 class ActionRequest(BaseModel):
@@ -513,8 +514,11 @@ def create_match(req: CreateMatchRequest):
                                 detail=f"kind inválido: {spec.kind} (web|agent)")
         players.append(Player(spec.name, ctrl))
 
-    teams = [Team("Equipo 1", [p for i, p in enumerate(players) if i % 2 == 0]),
-             Team("Equipo 2", [p for i, p in enumerate(players) if i % 2 == 1])]
+    team_a_name, team_b_name = "Equipo 1", "Equipo 2"
+    if req.team_names and len(req.team_names) == 2:
+        team_a_name, team_b_name = req.team_names
+    teams = [Team(team_a_name, [p for i, p in enumerate(players) if i % 2 == 0]),
+             Team(team_b_name, [p for i, p in enumerate(players) if i % 2 == 1])]
     for p in players:
         p.team = next(t for t in teams if p in t.players)
 

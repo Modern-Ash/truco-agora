@@ -3,10 +3,21 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Lobby from "../src/Lobby.jsx";
 import { createMatch } from "../src/api.js";
+import { NOMBRES_EQUIPOS, NOMBRES_HUMANOS, NOMBRES_AGENTES } from "../src/names.js";
 
 vi.mock("../src/api.js", () => ({
   createMatch: vi.fn(),
 }));
+
+// Nombres por defecto (equipo/jugador) se eligen al azar; se fija
+// Math.random en 0 para que cada elección sea el primer elemento
+// disponible del pool y las pruebas sean deterministas.
+beforeEach(() => {
+  vi.spyOn(Math, "random").mockReturnValue(0);
+});
+afterEach(() => {
+  Math.random.mockRestore();
+});
 
 test("lobby renderiza elección de modalidad y objetivo", () => {
   render(<Lobby />);
@@ -14,7 +25,13 @@ test("lobby renderiza elección de modalidad y objetivo", () => {
   expect(screen.getByTestId("mode-2v2")).toBeInTheDocument();
   expect(screen.getByTestId("target-15")).toBeInTheDocument();
   expect(screen.getByTestId("target-30")).toBeInTheDocument();
-  expect(screen.getByTestId("seat-0")).toHaveValue("Jugador 1");
+  expect(screen.getByTestId("seat-0")).toHaveValue(NOMBRES_HUMANOS[0]);
+});
+
+test("cada asiento arranca con un nombre humano distinto de un pool por defecto", () => {
+  render(<Lobby />);
+  expect(screen.getByTestId("seat-0")).toHaveValue(NOMBRES_HUMANOS[0]);
+  expect(screen.getByTestId("seat-1")).toHaveValue(NOMBRES_HUMANOS[1]);
 });
 
 test("cambiar a 2v2 muestra cuatro asientos", async () => {
@@ -43,13 +60,14 @@ test("crear partida llama a la API con la configuración elegida", async () => {
     target_score: 30,
     players: [
       { name: "Fede", kind: "web" },
-      { name: "Jugador 2", kind: "web" },
+      { name: NOMBRES_HUMANOS[1], kind: "web" },
     ],
     engine: "llm",
     engine_provider: "mock",
     engine_model: undefined,
     step_mode: false,
     seed: null,
+    team_names: [NOMBRES_EQUIPOS[0], NOMBRES_EQUIPOS[1]],
   });
 });
 
@@ -112,12 +130,23 @@ test("marcar un asiento como agente muestra proveedor/modelo y se envía kind ag
     expect(createMatch).toHaveBeenCalledWith(
       expect.objectContaining({
         players: [
-          { name: "Jugador 1", kind: "web" },
-          { name: "Jugador 2", kind: "agent", provider: "opencode", model: undefined },
+          { name: NOMBRES_HUMANOS[0], kind: "web" },
+          { name: NOMBRES_AGENTES[0], kind: "agent", provider: "opencode", model: undefined },
         ],
       })
     )
   );
+});
+
+test("un nombre editado a mano no se pierde al cambiar el tipo de asiento", async () => {
+  const user = userEvent.setup();
+  render(<Lobby />);
+
+  await user.clear(screen.getByTestId("seat-1"));
+  await user.type(screen.getByTestId("seat-1"), "Robotina");
+  await user.click(screen.getByTestId("seat-1-kind-agent"));
+
+  expect(screen.getByTestId("seat-1")).toHaveValue("Robotina");
 });
 
 // -------------------------------------------------- modo paso a paso

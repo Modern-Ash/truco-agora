@@ -1,10 +1,6 @@
 import React, { useState } from "react";
 import { createMatch } from "./api.js";
-
-const DEFAULT_NAMES = {
-  "1v1": ["Jugador 1", "Jugador 2"],
-  "2v2": ["Jugador 1", "Jugador 2", "Jugador 3", "Jugador 4"],
-};
+import { NOMBRES_EQUIPOS, pickUnique, pickName, poolFor } from "./names.js";
 
 export const LLM_PROVIDERS = ["mock", "claude", "codex", "opencode", "ollama"];
 
@@ -16,12 +12,20 @@ const INPUT = "block w-full rounded-lg glass-panel px-3 py-2 " +
   "text-sm text-crema outline-none transition placeholder:text-crema/40 " +
   "focus:border-teal/50! focus:ring-2 focus:ring-teal/25";
 
-function defaultSeat(name) {
-  return { name, kind: "web", provider: "mock", model: "" };
-}
-
 function defaultSeats(mode) {
-  return DEFAULT_NAMES[mode].map(defaultSeat);
+  const count = mode === "2v2" ? 4 : 2;
+  const seats = [];
+  for (let i = 0; i < count; i++) {
+    const excluded = seats.map((s) => s.name);
+    seats.push({
+      name: pickName(poolFor("web"), excluded),
+      kind: "web",
+      provider: "mock",
+      model: "",
+      autoName: true, // el nombre sigue siendo un default: se regenera al cambiar de tipo
+    });
+  }
+  return seats;
 }
 
 export default function Lobby({ onCreated }) {
@@ -44,7 +48,15 @@ export default function Lobby({ onCreated }) {
   }
 
   function updateSeat(i, patch) {
-    const next = seats.map((s, j) => (j === i ? { ...s, ...patch } : s));
+    const next = seats.map((s, j) => {
+      if (j !== i) return s;
+      if ("name" in patch) return { ...s, ...patch, autoName: false };
+      if ("kind" in patch && patch.kind !== s.kind && s.autoName) {
+        const excluded = seats.filter((_, k) => k !== i).map((x) => x.name);
+        return { ...s, ...patch, name: pickName(poolFor(patch.kind), excluded) };
+      }
+      return { ...s, ...patch };
+    });
     setSeats(next);
     if (!next.every((s) => s.kind === "agent")) setStepMode(false);
   }
@@ -59,6 +71,7 @@ export default function Lobby({ onCreated }) {
           ? { provider: s.provider, model: s.model || undefined }
           : {}),
       }));
+      const team_names = pickUnique(NOMBRES_EQUIPOS, 2);
       const data = await createMatch({
         mode,
         target_score: target,
@@ -68,6 +81,7 @@ export default function Lobby({ onCreated }) {
         engine_model: engineModel || undefined,
         step_mode: allAgents && stepMode,
         seed: null,
+        team_names,
       });
       localStorage.setItem(
         "truco:lastConfig",
