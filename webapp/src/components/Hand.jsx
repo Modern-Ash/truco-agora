@@ -11,6 +11,7 @@ export function CardFace({ card, onClick, disabled, testid }) {
         "justify-between rounded-xl border-none bg-crema py-1.5 font-serif-display " +
         "shadow-lg shadow-black/45 transition-transform duration-150 " +
         "enabled:cursor-pointer enabled:hover:-translate-y-2.5 " +
+        "enabled:hover:shadow-[0_10px_28px_rgba(46,230,196,0.35)] " +
         "disabled:cursor-default disabled:opacity-80"
       }
       data-testid={testid}

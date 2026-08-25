@@ -48,10 +48,11 @@ export default function Actions({ pending, onAction }) {
           className={
             `accion ${opt.startsWith("no_") ? "neg" : "pos"} ` +
             "rounded-full px-5 py-2 font-serif-display font-bold shadow-lg " +
-            "shadow-black/35 transition hover:brightness-107 " +
+            "shadow-black/35 transition hover:brightness-110 " +
             (opt.startsWith("no_")
-              ? "bg-rojo text-white"
-              : "bg-crema text-tinta")
+              ? "bg-rojo/85 text-white"
+              : "bg-teal/20 border border-teal/50 text-teal " +
+                "shadow-[0_0_16px_rgba(46,230,196,0.18)] hover:bg-teal/30")
           }
           onClick={() =>
             onAction(

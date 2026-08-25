@@ -3,8 +3,8 @@ import React from "react";
 export default function Scoreboard({ teams, target, winner, finished }) {
   return (
     <div
-      className="marcador min-w-[150px] rounded-lg border-4 border-madera
-                  bg-[#222c26] px-4 py-2 text-[#e8e3d5] shadow-lg"
+      className="marcador glass-panel min-w-[150px] rounded-lg px-4 py-2
+                  font-mono text-crema shadow-lg"
       data-testid="marcador"
     >
       <h3 className="mb-1 text-xs opacity-70">A {target}</h3>
@@ -19,10 +19,10 @@ export default function Scoreboard({ teams, target, winner, finished }) {
             }
             data-testid={`equipo-${t.name}`}
           >
-            <span className="nombre flex-1 text-sm">{t.name}</span>
+            <span className="nombre flex-1 font-body text-sm">{t.name}</span>
             <span
               className={
-                "puntos text-2xl font-bold " +
+                "puntos text-2xl font-bold tabular-nums " +
                 zona + " " +
                 (zona === "buenas" ? "text-oro" : "")
               }

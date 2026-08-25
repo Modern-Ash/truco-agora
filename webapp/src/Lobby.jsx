@@ -8,13 +8,13 @@ const DEFAULT_NAMES = {
 
 export const LLM_PROVIDERS = ["mock", "claude", "codex", "opencode", "ollama"];
 
-const SEG_BTN = "seg-btn flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 " +
-  "font-serif-display text-sm text-tinta shadow-sm transition hover:border-pano " +
-  "hover:shadow";
-const SEG_BTN_ON = SEG_BTN + " on bg-pano! text-white! border-pano! shadow-md";
-const INPUT = "block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 " +
-  "text-sm text-tinta shadow-sm outline-none transition focus:border-pano " +
-  "focus:ring-2 focus:ring-pano/30";
+const SEG_BTN = "seg-btn glass-panel flex-1 rounded-lg px-3 py-2 " +
+  "font-serif-display text-sm text-crema transition hover:border-teal/40!";
+const SEG_BTN_ON = SEG_BTN +
+  " on bg-teal/20! text-teal! border-teal/50! shadow-[0_0_16px_rgba(46,230,196,0.18)]";
+const INPUT = "block w-full rounded-lg glass-panel px-3 py-2 " +
+  "text-sm text-crema outline-none transition placeholder:text-crema/40 " +
+  "focus:border-teal/50! focus:ring-2 focus:ring-teal/25";
 
 function defaultSeat(name) {
   return { name, kind: "web", provider: "mock", model: "" };
@@ -103,16 +103,16 @@ export default function Lobby({ onCreated }) {
                       drop-shadow-md">
         🃏 Truco Argentino
       </h1>
-      <p className="sub mb-8 text-center text-sm text-stone-300">
-        La mesa virtual, como en el club.
+      <p className="sub mb-8 text-center text-sm text-crema/55">
+        La mesa virtual, reinventada.
       </p>
 
-      <section className="panel mb-6 rounded-2xl bg-crema p-6 shadow-2xl shadow-black/40">
-        <h2 className="mb-4 text-lg font-bold text-tinta">Nueva partida</h2>
+      <section className="panel glass-panel mb-6 rounded-2xl p-6 shadow-2xl shadow-black/40">
+        <h2 className="mb-4 text-lg font-bold text-crema">Nueva partida</h2>
 
         <div className="field mb-5">
           <span className="label mb-1.5 block text-xs font-semibold uppercase
-                            tracking-wider text-tinta/65">
+                            tracking-wider text-crema/55">
             Modalidad
           </span>
           <div className="seg flex gap-2">
@@ -132,7 +132,7 @@ export default function Lobby({ onCreated }) {
 
         <div className="field mb-5">
           <span className="label mb-1.5 block text-xs font-semibold uppercase
-                            tracking-wider text-tinta/65">
+                            tracking-wider text-crema/55">
             Partida a
           </span>
           <div className="seg flex gap-2">
@@ -152,7 +152,7 @@ export default function Lobby({ onCreated }) {
 
         <div className="field mb-5">
           <span className="label mb-1.5 block text-xs font-semibold uppercase
-                            tracking-wider text-tinta/65">
+                            tracking-wider text-crema/55">
             Motor de reglas
           </span>
           <div className="seg flex gap-2">
@@ -196,12 +196,12 @@ export default function Lobby({ onCreated }) {
 
         <div className="field mb-5">
           <span className="label mb-1.5 block text-xs font-semibold uppercase
-                            tracking-wider text-tinta/65">
+                            tracking-wider text-crema/55">
             Asientos
           </span>
           {seats.map((s, i) => (
             <div
-              className="seat-config mb-2 rounded-lg border border-stone-300 p-3"
+              className="seat-config glass-panel mb-2 rounded-lg p-3"
               key={i}
               data-testid={`seat-config-${i}`}
             >
@@ -259,7 +259,7 @@ export default function Lobby({ onCreated }) {
           <label
             className={
               "flex items-center gap-2 text-sm " +
-              (allAgents ? "cursor-pointer text-tinta" : "cursor-not-allowed text-tinta/40")
+              (allAgents ? "cursor-pointer text-crema" : "cursor-not-allowed text-crema/35")
             }
             data-testid="step-mode-label"
           >
@@ -273,7 +273,7 @@ export default function Lobby({ onCreated }) {
             Modo paso a paso (espectador) — controlá el ritmo de la partida
           </label>
           {!allAgents && (
-            <p className="mt-1 text-xs text-tinta/50">
+            <p className="mt-1 text-xs text-crema/45">
               Disponible solo cuando todos los asientos son Agente LLM.
             </p>
           )}
@@ -281,8 +281,9 @@ export default function Lobby({ onCreated }) {
 
         <button
           type="button"
-          className="primary w-full rounded-xl bg-pano py-3 font-bold text-white
-                     shadow-md transition hover:brightness-110 active:scale-[0.99]"
+          className="primary w-full rounded-xl bg-teal/20 border border-teal/50 py-3
+                     font-bold text-teal shadow-[0_0_20px_rgba(46,230,196,0.18)]
+                     transition hover:bg-teal/30 active:scale-[0.99]"
           data-testid="crear"
           onClick={crear}
         >
@@ -291,8 +292,8 @@ export default function Lobby({ onCreated }) {
         {error && <p className="err mt-3 text-sm text-rojo">{error}</p>}
       </section>
 
-      <section className="panel rounded-2xl bg-crema p-6 shadow-2xl shadow-black/40">
-        <h2 className="mb-4 text-lg font-bold text-tinta">Unirse a una partida</h2>
+      <section className="panel glass-panel rounded-2xl p-6 shadow-2xl shadow-black/40">
+        <h2 className="mb-4 text-lg font-bold text-crema">Unirse a una partida</h2>
         <div className="join flex gap-2">
           <input
             data-testid="join-input"
@@ -305,9 +306,9 @@ export default function Lobby({ onCreated }) {
             type="button"
             data-testid="join"
             onClick={unirse}
-            className="rounded-lg border border-stone-300 bg-white px-4 py-2
-                       text-sm font-semibold text-tinta shadow-sm transition
-                       hover:border-pano hover:shadow"
+            className="glass-panel rounded-lg px-4 py-2
+                       text-sm font-semibold text-crema transition
+                       hover:border-teal/40!"
           >
             Entrar
           </button>
