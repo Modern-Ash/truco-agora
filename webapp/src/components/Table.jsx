@@ -154,18 +154,18 @@ export default function Table({ state: propState, matchId, seat }) {
       {!state.finished && state.turn && (
         <div
           className={
-            "turn-banner mx-auto mb-1 flex items-center gap-2 rounded-full px-5 py-2 " +
-            "font-serif-display text-sm font-bold shadow-lg shadow-black/30 " +
+            "turn-banner glass-panel mx-auto mb-1 flex items-center gap-2 rounded-full " +
+            "px-5 py-2 font-serif-display text-sm font-bold shadow-lg shadow-black/30 " +
             (myTurn
-              ? "bg-oro text-tinta animate-pulso"
-              : "bg-black/35 text-crema")
+              ? "border-teal/50! text-teal animate-pulso"
+              : "text-crema")
           }
           data-testid="turn-banner"
         >
           <span
             className={
               "inline-block h-2.5 w-2.5 rounded-full " +
-              (myTurn ? "bg-tinta" : "bg-oro animate-pulse")
+              (myTurn ? "bg-teal shadow-[0_0_8px_var(--color-teal)]" : "bg-oro animate-pulse")
             }
           />
           {myTurn ? "¡Tu turno! Jugá una carta o cantá algo." : `Turno de ${state.turn}`}
@@ -207,7 +207,7 @@ export default function Table({ state: propState, matchId, seat }) {
               <div className="flex flex-col items-center gap-3">
                 <span className="hint italic text-[#bfd8c6]">vista de espectador</span>
                 {others.length > 0 && (
-                  <div className="bazas flex flex-col gap-2 rounded-xl bg-black/15 px-4 py-3">
+                  <div className="bazas glass-panel flex flex-col gap-2 rounded-xl px-4 py-3">
                     {others.map((o) => (
                       <BazaRow key={o.name} name={o.name} cards={o.played} />
                     ))}
@@ -215,8 +215,8 @@ export default function Table({ state: propState, matchId, seat }) {
                 )}
                 {pendingStep && (
                   <div
-                    className="step-controls flex flex-col items-center gap-2 rounded-xl
-                               bg-black/25 px-4 py-3"
+                    className="step-controls glass-panel flex flex-col items-center gap-2
+                               rounded-xl px-4 py-3"
                     data-testid="step-controls"
                   >
                     <p className="text-sm text-crema">
@@ -229,8 +229,9 @@ export default function Table({ state: propState, matchId, seat }) {
                         data-testid="siguiente-movida"
                         disabled={stepping}
                         onClick={step}
-                        className="rounded-full bg-oro px-4 py-1.5 text-sm font-bold
-                                   text-tinta shadow transition
+                        className="rounded-full bg-teal/20 border border-teal/50 px-4 py-1.5
+                                   text-sm font-bold text-teal shadow-[0_0_16px_rgba(46,230,196,0.18)]
+                                   transition hover:bg-teal/30
                                    disabled:cursor-wait disabled:opacity-60"
                       >
                         {stepping ? "Jugando…" : "Siguiente movida"}
@@ -304,14 +305,17 @@ export default function Table({ state: propState, matchId, seat }) {
           <div className="mi-zona flex flex-col items-center gap-2" data-testid="mi-zona">
             <div className="quien text-base text-crema">
               <strong>{seat}</strong>
-              {state.mano === seat && <span className="chip inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta">MANO</span>}
-              {myTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta bg-oro! animate-pulso">TU TURNO</span>}
+              {state.mano === seat && <span className="chip inline-block ml-1.5 rounded-full bg-oro/20 border border-oro/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-oro">MANO</span>}
+              {myTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-teal/20 border border-teal/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-teal animate-pulso">TU TURNO</span>}
             </div>
             {state.call_vigente && !state.finished && (
               <p
-                className="banner-canto rounded-full bg-black/30 px-4 py-1.5 text-sm text-oro"
+                className="banner-canto glass-panel flex items-center gap-2 rounded-full
+                           border-violeta/40! px-4 py-1.5 text-sm text-violeta
+                           shadow-[0_0_20px_rgba(168,85,247,0.18)]"
                 data-testid="banner-canto"
               >
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-violeta animate-pulso-violeta" />
                 {bannerTexto(state, seat)}
               </p>
             )}
@@ -347,9 +351,9 @@ export default function Table({ state: propState, matchId, seat }) {
 
       {toast && (
         <div
-          className="toast-sena animate-jugar fixed bottom-38 left-1/2 z-40
-                     -translate-x-1/2 rounded-full bg-oro px-5 py-2 font-bold
-                     text-tinta shadow-xl shadow-black/45"
+          className="toast-sena glass-panel animate-jugar fixed bottom-38 left-1/2 z-40
+                     -translate-x-1/2 rounded-full border-teal/40! px-5 py-2 font-bold
+                     text-teal shadow-xl shadow-black/45"
           data-testid="toast-sena"
         >
           {toast}
@@ -370,7 +374,7 @@ export default function Table({ state: propState, matchId, seat }) {
       {state.finished && (
         <div
           className="overlay fixed inset-0 flex flex-col items-center justify-center
-                     gap-4 bg-[#0a140e]/90 text-crema"
+                     gap-4 bg-base-deep/92 backdrop-blur-sm text-crema"
           data-testid="fin-partida"
         >
           <h2 className="text-2xl font-bold">
@@ -379,7 +383,9 @@ export default function Table({ state: propState, matchId, seat }) {
           <button
             type="button"
             onClick={revancha}
-            className="rounded-full bg-oro px-8 py-2.5 font-bold text-tinta shadow-lg"
+            className="rounded-full bg-teal/20 border border-teal/50 px-8 py-2.5
+                       font-bold text-teal shadow-[0_0_24px_rgba(46,230,196,0.2)]
+                       transition hover:bg-teal/30"
           >
             Revancha
           </button>
@@ -388,7 +394,7 @@ export default function Table({ state: propState, matchId, seat }) {
             onClick={() => {
               window.location.href = "/";
             }}
-            className="rounded-full border border-crema px-8 py-2.5 font-bold text-crema"
+            className="rounded-full border border-crema/40 px-8 py-2.5 font-bold text-crema"
           >
             Lobby
           </button>
@@ -429,24 +435,24 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
   return (
     <div
       className={
-        `slot ${side} ${isTurn ? "turno" : ""} min-w-[120px] rounded-xl ` +
-        `bg-black/18 px-3 py-2 outline outline-2 outline-transparent ` +
+        `slot ${side} ${isTurn ? "turno" : ""} glass-panel min-w-[120px] rounded-xl ` +
+        `px-3 py-2 outline outline-2 outline-transparent ` +
         `transition-shadow duration-200 ${sideClass} ` +
-        (isTurn ? "shadow-[0_0_14px_rgba(255,215,110,0.45)] outline-oro!" : "")
+        (isTurn ? "shadow-[0_0_14px_rgba(46,230,196,0.4)] outline-teal!" : "")
       }
       data-testid={dataTestid}
     >
       <div className="nombre-jugador text-[0.95rem] text-crema">
         {player.name}
-        {isMano && <span className="chip inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta">MANO</span>}
-        {isTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-[#efe3c8] px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-tinta bg-oro! animate-pulso">JUGANDO</span>}
+        {isMano && <span className="chip inline-block ml-1.5 rounded-full bg-oro/20 border border-oro/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-oro">MANO</span>}
+        {isTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-teal/20 border border-teal/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-teal animate-pulso">JUGANDO</span>}
       </div>
       {onSena && (
         <div className="zona-senas relative inline-block">
           <button
             type="button"
-            className="btn-sena rounded-full bg-crema px-3 py-1 text-xs font-normal
-                       text-tinta opacity-85 transition hover:opacity-100"
+            className="btn-sena glass-panel rounded-full px-3 py-1 text-xs font-normal
+                       text-crema opacity-85 transition hover:opacity-100"
             data-testid={`btn-sena-${player.name}`}
             onClick={onSena}
             title="Enviar una seña a tu compañero"
@@ -455,9 +461,8 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
           </button>
           {senaAbierta && (
             <div
-              className="paleta-senas absolute left-1/2 top-[calc(100%+6px)] z-30
-                         flex -translate-x-1/2 gap-1 rounded-full border
-                         border-crema/35 bg-tinta px-2 py-1"
+              className="paleta-senas glass-panel absolute left-1/2 top-[calc(100%+6px)] z-30
+                         flex -translate-x-1/2 gap-1 rounded-full px-2 py-1"
               data-testid="paleta-senas"
             >
               {senas.map((s) => (

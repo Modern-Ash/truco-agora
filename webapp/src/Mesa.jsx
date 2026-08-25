@@ -66,21 +66,20 @@ function SeatPicker({ matchId, state, onPick }) {
                       drop-shadow-md">
         Elegí tu asiento
       </h1>
-      <p className="sub mb-8 text-center text-sm text-stone-300">
+      <p className="sub mb-8 text-center text-sm text-crema/55">
         Partida {matchId}
       </p>
-      <section className="panel rounded-2xl bg-crema p-6 shadow-2xl shadow-black/40">
+      <section className="panel glass-panel rounded-2xl p-6 shadow-2xl shadow-black/40">
         {seats.map((s) => (
           <button
             type="button"
             key={s.name}
             data-testid={`seat-choice-${s.name}`}
-            className="seat-btn mb-2 block w-full rounded-lg border border-stone-300
-                       bg-white px-3 py-2.5 text-left shadow-sm transition
-                       hover:border-pano hover:shadow"
+            className="seat-btn glass-panel mb-2 block w-full rounded-lg px-3 py-2.5
+                       text-left text-crema transition hover:border-teal/40!"
             onClick={() => pick(s.name)}
           >
-            🪑 {s.name} <small className="text-stone-500">({s.team})</small>
+            🪑 {s.name} <small className="text-crema/50">({s.team})</small>
           </button>
         ))}
       </section>

@@ -1,14 +1,21 @@
 @import "tailwindcss";
 
+/* Paleta y tipografía: ver webapp/DESIGN.md (dark glassmorphism / web3 gaming) */
 @theme {
-  --color-pano: #1c6b3c;
-  --color-pano-oscuro: #14522d;
-  --color-madera: #5a3820;
-  --color-crema: #f7f1e3;
-  --color-tinta: #2a2118;
-  --color-rojo: #b3392e;
-  --color-oro: #ffd76e;
-  --font-serif-display: "Georgia", "Times New Roman", serif;
+  --color-base: #0b1512;
+  --color-base-deep: #070d0b;
+  --color-glass: rgba(16, 35, 29, 0.55);
+  --color-glass-border: rgba(120, 220, 190, 0.14);
+  --color-teal: #2ee6c4;
+  --color-violeta: #a855f7;
+  --color-oro: #e8b84b;
+  --color-crema: #f7f3ea;
+  --color-tinta: #16211c;
+  --color-rojo: #d3453a;
+
+  --font-serif-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 * {
@@ -17,9 +24,9 @@
 }
 
 body {
-  font-family: var(--font-serif-display);
-  background: var(--color-madera);
-  color: var(--color-tinta);
+  font-family: var(--font-body);
+  background: var(--color-base);
+  color: var(--color-crema);
 }
 
 @keyframes jugar {
@@ -27,19 +34,41 @@ body {
   to { transform: none; opacity: 1; }
 }
 @keyframes pulso {
-  50% { box-shadow: 0 0 10px rgba(255, 215, 110, 0.9); }
+  0%, 100% { box-shadow: 0 0 10px rgba(46, 230, 196, 0.55); }
+  50% { box-shadow: 0 0 22px rgba(46, 230, 196, 0.95); }
+}
+@keyframes pulso-violeta {
+  0%, 100% { opacity: 1; box-shadow: 0 0 14px rgba(168, 85, 247, 0.55); }
+  50% { opacity: 0.7; box-shadow: 0 0 26px rgba(168, 85, 247, 0.9); }
 }
 
 .animate-jugar { animation: jugar 0.18s ease-out; }
 .animate-pulso { animation: pulso 1.2s infinite; }
+.animate-pulso-violeta { animation: pulso-violeta 1.6s infinite; }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulso, .animate-pulso-violeta { animation: none; }
+}
+
+/* Mesa: base radial oscura con vidrio, no más paño verde fotorrealista */
 .mesa-bg {
-  background: radial-gradient(ellipse at center, var(--color-pano) 0%, var(--color-pano-oscuro) 75%);
+  background:
+    radial-gradient(ellipse 900px 560px at 50% -8%, rgba(46, 230, 196, 0.08), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 92% 108%, rgba(168, 85, 247, 0.07), transparent 55%),
+    linear-gradient(180deg, var(--color-base-deep), var(--color-base) 65%);
+}
+
+/* Vidrio esmerilado: panel base reutilizado en marcador, banners, slots, overlays */
+.glass-panel {
+  background: var(--color-glass);
+  border: 1px solid var(--color-glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .carta.palo-oro { color: #9a7b00; }
 .carta.palo-copa { color: var(--color-rojo); }
 .carta.palo-basto { color: #2c6e31; }
-.carta.palo-espada { color: #27496d; }
+.carta.palo-espada { color: #1f6f9c; }
 
 .campeon .nombre::after { content: " 🏆"; }
