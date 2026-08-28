@@ -899,9 +899,7 @@ test("sin pending_step mantiene los controles y deshabilita siguiente", () => {
     "Preparando jugada"
   );
   expect(screen.getByTestId("table-wait-status")).toHaveClass(
-    "top-1/2",
-    "-translate-y-1/2",
-    "justify-center"
+    "top-2"
   );
 });
 

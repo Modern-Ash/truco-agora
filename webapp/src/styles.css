@@ -1087,6 +1087,53 @@ button.spanish-card:disabled { cursor: default; filter: saturate(.84); }
   .lobby-seats__grid--1v1 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* En escritorio el chat acompaña todo el paño, mientras la baza conserva
+   una columna propia y las cartas quedan libres de la capa de mensajes. */
+@media (min-width: 1101px) {
+  .spectator-felt {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
+    grid-template-rows: auto minmax(220px, 1fr) auto;
+    column-gap: 14px;
+    align-items: stretch;
+  }
+  .spectator-table-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .spectator-middle { display: contents; }
+  .spectator-trick {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: stretch;
+    min-height: 220px;
+  }
+  .table-call-chat--full-height {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+  }
+  .table-call-chat--full-height .table-call-chat__log {
+    height: auto;
+    min-height: 0;
+    flex: 1;
+  }
+  .table-call-chat--full-height .table-call-chat__empty {
+    height: auto;
+    min-height: 148px;
+    flex: 1;
+  }
+  .spectator-felt > .spectator-team {
+    grid-column: 1;
+    grid-row: 3;
+  }
+}
+
 @media (max-width: 1100px) {
   .spectator-table-head {
     grid-template-columns: minmax(250px, 330px) minmax(0, 1fr);

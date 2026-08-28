@@ -1194,7 +1194,7 @@ function SpectatorTrick({
           "items-center justify-center gap-2 whitespace-nowrap bg-base-deep/90 px-4 py-1 " +
           "text-center font-bold uppercase " +
           (waitStatus
-            ? "top-1/2 -translate-y-1/2 rounded-full border border-teal/30 " +
+            ? "top-2 rounded-full border border-teal/30 " +
               "text-[0.62rem] tracking-[0.08em] text-teal"
             : "top-0 rounded-b-xl border-x border-b border-oro/25 " +
               "text-[0.58rem] tracking-[0.24em] text-oro/80")
@@ -1254,7 +1254,7 @@ function TableCallChat({ players, events, current }) {
 
   return (
     <section
-      className="table-call-chat"
+      className="table-call-chat table-call-chat--full-height"
       data-testid="table-call-chat"
       aria-label="Conversación de cantos de la mesa"
     >
