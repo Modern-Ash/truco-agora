@@ -1,0 +1,24 @@
+# Work events
+
+- 2026-08-27T23:53:40.012018Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T23:59:03.912461Z | artifact.added | kind=spec uri=repo://docs/picardia-teams-spec.md actor=project:owner
+- 2026-08-27T23:59:04.182731Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-27T23:59:04.446672Z | artifact.added | kind=source-code uri=repo://webapp/src/Lobby.jsx actor=project:agent
+- 2026-08-27T23:59:04.717020Z | artifact.added | kind=source-code uri=repo://webapp/src/Mesa.jsx actor=project:agent
+- 2026-08-27T23:59:04.985644Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-27T23:59:05.259832Z | artifact.added | kind=source-code uri=repo://webapp/src/styles.css actor=project:agent
+- 2026-08-27T23:59:05.529101Z | artifact.added | kind=test-report uri=repo://docs/picardia-teams-test-report.md actor=project:agent
+- 2026-08-27T23:59:09.353082Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T23:59:09.624571Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T23:59:09.886244Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-27T23:59:13.724481Z | work.criterion-satisfied | criterion=player-scope actor=project:owner
+- 2026-08-27T23:59:14.006914Z | work.criterion-satisfied | criterion=team-scope actor=project:owner
+- 2026-08-27T23:59:14.286937Z | work.criterion-satisfied | criterion=table-badge actor=project:owner
+- 2026-08-27T23:59:14.594230Z | work.criterion-satisfied | criterion=responsive-accessible actor=project:owner
+- 2026-08-27T23:59:14.905388Z | work.criterion-satisfied | criterion=tests-pass actor=project:owner
+- 2026-08-27T23:59:19.029310Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T23:59:19.299906Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T23:59:19.572321Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T23:59:19.855739Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T23:59:24.419870Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T23:59:24.697488Z | work.transitioned | from=verifying to=completed actor=project:owner

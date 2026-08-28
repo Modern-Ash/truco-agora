@@ -1,0 +1,21 @@
+# Work events
+
+- 2026-08-28T00:03:06.010190Z | work.created | state=drafting actor=project:owner
+- 2026-08-28T00:16:40.867638Z | artifact.added | kind=spec uri=file://docs/backend-observability-spec.md actor=project:owner
+- 2026-08-28T00:16:49.976754Z | artifact.added | kind=source-code uri=file://truco/observability.py actor=project:agent
+- 2026-08-28T00:16:50.258901Z | artifact.added | kind=source-code uri=file://truco/api.py actor=project:agent
+- 2026-08-28T00:16:50.534415Z | artifact.added | kind=test-report uri=file://docs/backend-observability-test-report.md actor=project:agent
+- 2026-08-28T00:16:50.830932Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-28T00:16:51.114898Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-28T00:16:56.248698Z | work.criterion-satisfied | criterion=configurable-logging actor=project:owner
+- 2026-08-28T00:16:56.533690Z | work.criterion-satisfied | criterion=request-tracing actor=project:owner
+- 2026-08-28T00:16:56.832239Z | work.criterion-satisfied | criterion=match-tracing actor=project:owner
+- 2026-08-28T00:16:57.116005Z | work.criterion-satisfied | criterion=safe-diagnostics actor=project:owner
+- 2026-08-28T00:16:57.411346Z | work.criterion-satisfied | criterion=hang-visibility actor=project:owner
+- 2026-08-28T00:16:57.692816Z | work.criterion-satisfied | criterion=tests-pass actor=project:owner
+- 2026-08-28T00:17:02.651078Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-28T00:17:02.948525Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-28T00:17:03.243650Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-28T00:17:03.566536Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-28T00:17:14.709595Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-28T00:17:15.021758Z | work.transitioned | from=verifying to=completed actor=project:owner

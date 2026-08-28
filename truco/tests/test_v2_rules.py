@@ -163,6 +163,42 @@ def test_empate_de_envido_lo_resuelve_el_mano():
     assert t1.score == 15 and m.winner is t1  # mano gana el empate
 
 
+def test_real_y_falta_envido_se_pueden_cantar_de_primera():
+    m, t1, t2, *_ = make_1v1(
+        score=(12, 0), actions_a=["real_envido"], resp_b=["quiero"]
+    )
+    deal(
+        m,
+        [Card("oro", 7), Card("oro", 2), Card("copa", 12)],
+        [Card("basto", 6), Card("oro", 5), Card("copa", 4)],
+    )
+    m.play_match()
+    assert t1.score == 15 and m.winner is t1
+
+    m, t1, t2, *_ = make_1v1(
+        score=(4, 5), target=30, actions_a=["falta_envido"], resp_b=["quiero"]
+    )
+    deal(
+        m,
+        [Card("oro", 7), Card("oro", 2), Card("copa", 12)],
+        [Card("basto", 6), Card("oro", 5), Card("copa", 4)],
+    )
+    m.play_match()
+    assert t1.score == 30 and m.winner is t1
+
+
+def test_sin_flor_no_ofrece_ni_puntua_flor():
+    m, t1, _, *_ = make_1v1(actions_a=["flor"], score=(12, 0))
+    m.flor_enabled = False
+    deal(
+        m,
+        [Card("oro", 7), Card("oro", 1), Card("oro", 12)],
+        [Card("basto", 3), Card("oro", 2), Card("copa", 12)],
+    )
+    m.play_hand()
+    assert t1.score < 15
+
+
 # -------------------------------------------------------------------- flor
 
 def test_has_flor_y_best_flor():
@@ -290,6 +326,7 @@ def test_tapada_pierde_incluso_con_la_carta_mas_alta():
 def test_dos_tapadas_empatan_entre_si_y_todo_parda_es_del_mano():
     m, t1, t2, p1, p2 = make_1v1(tap_a=[True, True, True],
                                  tap_b=[True, True, True])
+    m.flor_enabled = False
     deal(m, [Card("espada", 1), Card("espada", 2), Card("espada", 3)],
             [Card("copa", 1), Card("copa", 2), Card("copa", 3)])
     m.play_hand()

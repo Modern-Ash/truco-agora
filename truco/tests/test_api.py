@@ -46,7 +46,20 @@ def test_crear_partida_1v1_devuelve_id_y_estado(client):
     assert data["match_id"] and data["mode"] == "1v1"
     assert data["target_score"] == 15
     assert data["players"] == ["A", "B"]
+    assert data["flor_enabled"] is False
+    assert data["state"]["flor_enabled"] is False
     assert len(data["state"]["you"]["hand"]) == 3  # mano inicial repartida
+
+
+def test_crear_partida_puede_habilitar_variante_con_flor(client):
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "engine": "deterministic",
+        "flor_enabled": True,
+        "players": [{"name": "A"}, {"name": "B"}],
+    })
+    assert r.status_code == 201
+    assert r.json()["state"]["flor_enabled"] is True
 
 
 def test_crear_partida_2v2_alternando_equipos(client):
@@ -58,6 +71,30 @@ def test_crear_partida_2v2_alternando_equipos(client):
     teams = {t["name"]: t["players"] for t in r.json()["state"]["teams"]}
     assert teams["Equipo 1"] == ["A1", "A2"]
     assert teams["Equipo 2"] == ["B1", "B2"]
+
+
+def test_crear_partida_1v1_usa_nombres_de_jugadores_como_equipos(client):
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "engine": "deterministic",
+        "players": [{"name": "A"}, {"name": "B"}],
+        "team_names": ["Rosario", "Mendoza"],
+    })
+    assert r.status_code == 201
+    assert [team["name"] for team in r.json()["state"]["teams"]] == ["A", "B"]
+
+
+def test_crear_partida_2v2_usa_nombres_de_equipo_personalizados(client):
+    r = client.post("/matches", json={
+        "mode": "2v2",
+        "engine": "deterministic",
+        "players": [{"name": n} for n in ("A1", "B1", "A2", "B2")],
+        "team_names": ["Rosario", "Mendoza"],
+    })
+    assert r.status_code == 201
+    assert [team["name"] for team in r.json()["state"]["teams"]] == [
+        "Rosario", "Mendoza",
+    ]
 
 
 @pytest.mark.parametrize("payload", [
@@ -92,6 +129,25 @@ def test_agente_con_provider_desconocido_es_422(client):
     })
     assert r.status_code == 422
     assert "not-a-provider" in r.json()["detail"]
+
+
+def test_agente_con_bluff_level_mentiroso_es_valido(client):
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "players": [{"name": "A", "kind": "web"},
+                    {"name": "B", "kind": "agent", "bluff_level": "mentiroso"}],
+    })
+    assert r.status_code == 201
+
+
+def test_agente_con_bluff_level_invalido_es_422(client):
+    r = client.post("/matches", json={
+        "mode": "1v1",
+        "players": [{"name": "A", "kind": "web"},
+                    {"name": "B", "kind": "agent", "bluff_level": "no-existe"}],
+    })
+    assert r.status_code == 422
+    assert "bluff_level" in r.json()["detail"]
 
 
 def test_agente_con_provider_real_no_crashea_la_creacion(client, monkeypatch):
@@ -272,6 +328,6 @@ def test_partida_completa_solo_http_web_vs_web(client):
         raise AssertionError("la partida no terminó en 5000 jugadas")
 
     final = client.get(f"/matches/{mid}/state").json()
-    assert final["winner"] in ("Equipo 1", "Equipo 2")
+    assert final["winner"] in ("A", "B")
     scores = {t["name"]: t["score"] for t in final["teams"]}
     assert max(scores.values()) >= 15

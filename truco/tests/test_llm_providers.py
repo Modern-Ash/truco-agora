@@ -5,6 +5,7 @@ opencode instalados ni un servidor Ollama corriendo para pasar en CI.
 """
 from __future__ import annotations
 
+import json
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -15,8 +16,8 @@ from truco.llm_providers import (
     CodexCLIClient,
     OllamaClient,
     OpenCodeCLIClient,
-    ProviderUnavailableError,
     build_llm_client,
+    discover_models,
 )
 
 
@@ -58,11 +59,10 @@ def test_cli_client_falls_back_on_timeout():
     assert result == "jugar"
 
 
-def test_cli_client_raises_provider_unavailable_when_binary_missing():
+def test_cli_client_falls_back_when_binary_missing():
     client = ClaudeCLIClient()
     with patch("subprocess.run", side_effect=FileNotFoundError()):
-        with pytest.raises(ProviderUnavailableError):
-            client.decide("¿Qué hacés?", ["jugar"])
+        assert client.decide("¿Qué hacés?", ["jugar"]) == "jugar"
 
 
 def test_cli_client_matches_option_surrounded_by_extra_text():
@@ -82,13 +82,23 @@ def test_ollama_client_parses_matching_option():
     assert result == "quiero"
 
 
-def test_ollama_client_raises_provider_unavailable_on_connection_error():
+def test_ollama_client_falls_back_on_connection_error():
     import urllib.error
 
     client = OllamaClient()
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
-        with pytest.raises(ProviderUnavailableError):
-            client.decide("¿Aceptás?", ["quiero", "no_quiero"])
+        assert client.decide("¿Aceptás?", ["quiero", "no_quiero"]) == "quiero"
+
+
+def test_ollama_client_falls_back_on_http_404():
+    import urllib.error
+
+    client = OllamaClient(model="modelo-ausente")
+    error = urllib.error.HTTPError(
+        client.host, 404, "Not Found", hdrs=None, fp=None
+    )
+    with patch("urllib.request.urlopen", side_effect=error):
+        assert client.decide("¿Qué hacés?", ["jugar", "truco"]) == "jugar"
 
 
 def test_build_llm_client_mock_returns_none():
@@ -110,3 +120,59 @@ def test_build_llm_client_returns_correct_adapter(provider, cls):
     client = build_llm_client(provider, model="a-model")
     assert isinstance(client, cls)
     assert client.model == "a-model"
+
+
+def test_discover_models_mock_does_not_require_external_model():
+    result = discover_models("mock")
+    assert result["available"] is True
+    assert result["models"] == []
+    assert result["allow_custom_model"] is False
+
+
+def test_discover_models_claude_exposes_aliases_and_manual_fallback():
+    with patch("shutil.which", return_value="/usr/bin/claude"):
+        result = discover_models("claude")
+    assert result["available"] is True
+    assert {"sonnet", "opus", "haiku"}.issubset(result["models"])
+    assert result["allow_custom_model"] is True
+
+
+def test_discover_models_codex_reads_visible_local_catalog():
+    payload = {
+        "models": [
+            {"slug": "gpt-visible", "visibility": "list"},
+            {"slug": "gpt-hidden", "visibility": "hide"},
+        ]
+    }
+    with (
+        patch("shutil.which", return_value="/usr/bin/codex"),
+        patch("subprocess.run", return_value=_completed(json.dumps(payload))) as run,
+    ):
+        result = discover_models("codex")
+    assert result["models"] == ["gpt-visible"]
+    assert run.call_args.args[0] == ["/usr/bin/codex", "debug", "models"]
+
+
+def test_discover_models_opencode_reads_provider_model_lines():
+    output = "openai/gpt-5\nanthropic/claude-sonnet\ninvalid line with spaces\n"
+    with (
+        patch("shutil.which", return_value="/usr/bin/opencode"),
+        patch("subprocess.run", return_value=_completed(output)),
+    ):
+        result = discover_models("opencode")
+    assert result["models"] == ["anthropic/claude-sonnet", "openai/gpt-5"]
+
+
+def test_discover_models_ollama_reads_installed_tags():
+    response = MagicMock()
+    response.read.return_value = b'{"models":[{"name":"qwen2.5:7b"}]}'
+    response.__enter__.return_value = response
+    with patch("urllib.request.urlopen", return_value=response):
+        result = discover_models("ollama")
+    assert result["available"] is True
+    assert result["models"] == ["qwen2.5:7b"]
+
+
+def test_discover_models_unknown_provider_raises():
+    with pytest.raises(ValueError, match="Proveedor LLM desconocido"):
+        discover_models("unknown")

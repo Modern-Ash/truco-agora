@@ -6,9 +6,9 @@ import React from "react";
 function Oro(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <circle cx="12" cy="12" r="9" fill="currentColor" />
-      <circle cx="12" cy="12" r="9" stroke="black" strokeOpacity="0.25" strokeWidth="1" />
-      <circle cx="12" cy="12" r="4.5" fill="none" stroke="black" strokeOpacity="0.35" strokeWidth="1.4" />
+      <circle cx="12" cy="12" r="9.2" fill="currentColor" stroke="#6d4b08" strokeWidth="1.1" />
+      <circle cx="12" cy="12" r="6.2" fill="none" stroke="#fff3b0" strokeOpacity=".72" strokeWidth="1" />
+      <path d="M12 5.8 14 9l3.7.7-2.6 2.7.5 3.8-3.6-1.7-3.6 1.7.5-3.8-2.6-2.7L10 9Z" fill="#8a6010" />
     </svg>
   );
 }
@@ -16,10 +16,8 @@ function Oro(props) {
 function Copa(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <path
-        d="M5 3h14l-1.3 7.2a5.7 5.7 0 0 1-5.2 4.6v3.7h3.5v1.5H8v-1.5h3.5v-3.7a5.7 5.7 0 0 1-5.2-4.6L5 3Z"
-        fill="currentColor"
-      />
+      <path d="M4 2.8h16l-1.6 8.1a6.7 6.7 0 0 1-5.2 5.2v3h4v2.1H6.8v-2.1h4v-3a6.7 6.7 0 0 1-5.2-5.2Z" fill="currentColor" stroke="#72251f" strokeWidth=".8" />
+      <path d="M6.2 6.1h11.6M7.2 10.4h9.6" stroke="#ffd6af" strokeOpacity=".72" strokeWidth="1" />
     </svg>
   );
 }
@@ -27,11 +25,9 @@ function Copa(props) {
 function Espada(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <path d="M11.3 2.5 15 6.2 8.4 18.6l-3-3L11.3 2.5Z" fill="currentColor" />
-      <rect x="4.3" y="15.4" width="3" height="6.4" rx="0.6"
-            transform="rotate(45 5.8 18.6)" fill="currentColor" />
-      <rect x="12.5" y="4.3" width="6.2" height="1.7" rx="0.6"
-            transform="rotate(45 15.6 5.1)" fill="currentColor" />
+      <path d="m13.1 1.6 4 4L8.6 18.4l-3-3Z" fill="currentColor" stroke="#254150" strokeWidth=".8" />
+      <path d="m13.5 3 1.9 1.9-7.8 11.7-1-1Z" fill="#d9edf3" fillOpacity=".75" />
+      <path d="m4 15 5 5M3.2 18.3l3.5 3.5M15.2 4.2l4.2 4.2" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -39,8 +35,9 @@ function Espada(props) {
 function Basto(props) {
   return (
     <svg viewBox="0 0 24 24" fill="none" {...props}>
-      <rect x="10.3" y="6" width="3.4" height="16" rx="1.5" fill="currentColor" />
-      <circle cx="12" cy="4.6" r="3.4" fill="currentColor" />
+      <path d="M9.7 6h4.6l-1 16h-2.6Z" fill="currentColor" stroke="#31531f" strokeWidth=".7" />
+      <path d="M12 1.2c3.8 0 5.2 2.7 3.5 5.2-1 1.5-2.1 1.8-3.5 3.3-1.4-1.5-2.5-1.8-3.5-3.3C6.8 3.9 8.2 1.2 12 1.2Z" fill="currentColor" stroke="#31531f" strokeWidth=".7" />
+      <path d="M12 3v17" stroke="#dcefc5" strokeOpacity=".55" strokeWidth=".8" />
     </svg>
   );
 }
