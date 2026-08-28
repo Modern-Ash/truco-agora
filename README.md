@@ -9,6 +9,12 @@ proveedores y modelos, observar cómo toman decisiones los agentes y conservar e
 Git las especificaciones, evidencias y aprobaciones que dieron forma a cada
 feature.
 
+<p align="center">
+  <img src="docs/images/agent-arena-match-evolution.png" width="100%" alt="Dos momentos de una partida de Truco Agora entre agentes OpenCode y Ollama: se muestran el marcador de cerillos, las manos, las cartas jugadas, la identidad del modelo, el nivel de picardía y el historial de cantos." />
+</p>
+
+<p align="center"><sub>Una arena observable: identidad del agente, estrategia, conversación, cartas y marcador evolucionan en una misma vista.</sub></p>
+
 > [!IMPORTANT]
 > El motor LLM es experimental: un modelo puede interpretar incorrectamente una
 > regla fija. Para partidas reproducibles o validación funcional use el motor
@@ -27,6 +33,19 @@ feature.
 | Backend | API FastAPI por turnos, sesiones en memoria, validación centralizada y diagnóstico vivo por partida |
 | Observabilidad | Logs estructurados, correlación por `X-Request-ID`, archivo rotativo y eventos de sesión, motor, proveedor y controladores sin registrar prompts ni credenciales |
 | Gobernanza | Swarms, work items, criterios, artefactos, evidencia y aprobaciones persistidos bajo `.agora/` |
+
+## Recorrido visual
+
+<p align="center">
+  <img src="docs/images/configuration-walkthrough.png" width="100%" alt="Recorrido de configuración de Truco Agora: selección de modalidad, puntaje y motor; descubrimiento de modelos Codex y OpenCode; y dos agentes LLM configurados con proveedores, modelos y picardía antes de activar el ritmo de espectador." />
+</p>
+
+La configuración crece de forma progresiva sin exigir archivos manuales:
+
+1. Se eligen modalidad, puntaje, variante y motor de reglas.
+2. El backend descubre los proveedores y modelos disponibles en la máquina.
+3. Cada asiento puede ser humano o agente y tener proveedor, modelo y picardía propios.
+4. Cuando todos los asientos son agentes se habilita el ritmo de espectador.
 
 ## Arquitectura
 
@@ -168,6 +187,54 @@ paso. El espectador no ocupa un asiento y puede:
 - ver las manos de los agentes;
 - seguir el agente, proveedor y modelo reales de cada asiento;
 - inspeccionar cantos, respuestas, cartas y evolución del marcador.
+
+### Caso observado: cuando dos agentes pueden farolear
+
+Una corrida experimental terminó **13 a 5**. Los dos jugadores usaron la misma
+picardía, `mentiroso`, pero no con el mismo resultado:
+
+| Asiento | Runtime y modelo | Picardía |
+|---|---|---|
+| Androide-3 | OpenCode con `mimo-v2.5-free` | Mentiroso |
+| Bot Basto | Ollama con `deepseek-r1:1.5b` | Mentiroso |
+
+Las capturas de esta portada ilustran otra corrida de la misma clase de
+experimento —Androide-3 frente a RoboTruco— y no se presentan como evidencia
+visual del resultado final 13–5.
+
+La diferencia no apareció solamente en las cartas. Se hizo visible al decidir
+cuándo cantar Envido, aceptar un Truco, escalar a Real Envido o sostener una
+amenaza con una mano débil. El perfil de picardía define una **intención
+estratégica**, pero cada modelo la interpreta de manera distinta.
+
+- `cauteloso`: farolea solo en situaciones puntuales;
+- `equilibrado`: combina evidencia, presión y engaño;
+- `mentiroso`: farolea con mayor frecuencia y acepta más riesgo.
+
+Esto no habilita al agente a cambiar las reglas. En una evaluación con motor
+determinista, el LLM elige la estrategia entre acciones legales y el motor
+calcula tantos, valida cartas, controla cantos y resuelve bazas. El agente puede
+mentir sobre la fuerza que aparenta tener; no puede falsificar el valor real de
+su Envido.
+
+> [!NOTE]
+> Una partida 13–5 no permite declarar un modelo universalmente superior. Es una
+> observación que propone una hipótesis. Un benchmark serio necesita múltiples
+> partidas, semillas controladas y métricas sobre faroles, escaladas, retiros,
+> riesgo asumido y puntos obtenidos.
+
+El historial visible convierte cada canto en parte del estado observable. Es
+posible reconstruir quién dijo `Envido`, `Quiero`, `Truco`, `Real Envido` o
+`No quiero`, relacionarlo con el marcador y distinguir estilos como:
+
+- faroles previsibles o patrones repetidos;
+- apuestas que ignoran el marcador;
+- riesgo ajustado a ser mano o pie;
+- presión sostenida frente al historial del rival;
+- capacidad de abandonar un engaño a tiempo.
+
+Así, Truco Agora permite evaluar algo diferente de la exactitud textual: cómo un
+agente persuade, presiona, desconfía y engaña dentro de un entorno controlado.
 
 ```mermaid
 stateDiagram-v2
