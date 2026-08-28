@@ -1,29 +1,14 @@
 import React from "react";
-import { paloName } from "../cartas.js";
-import SuitIcon from "./SuitIcon.jsx";
+import SpanishCard, { CardBack } from "./SpanishCard.jsx";
 
 export function CardFace({ card, onClick, disabled, testid }) {
   return (
-    <button
-      type="button"
-      className={
-        `carta palo-${card.palo} flex h-28 w-[74px] flex-col items-center ` +
-        "justify-between rounded-xl border-none bg-crema py-1.5 font-serif-display " +
-        "shadow-lg shadow-black/45 transition-transform duration-150 " +
-        "enabled:cursor-pointer enabled:hover:-translate-y-2.5 " +
-        "enabled:hover:shadow-[0_10px_28px_rgba(46,230,196,0.35)] " +
-        "disabled:cursor-default disabled:opacity-80"
-      }
-      data-testid={testid}
-      disabled={disabled}
+    <SpanishCard
+      card={card}
       onClick={onClick}
-    >
-      <span className="carta-num text-xl font-bold">{card.numero}</span>
-      <SuitIcon palo={card.palo} className="carta-glyph h-8 w-8" />
-      <span className="carta-palo text-[0.6rem] font-bold uppercase tracking-wide">
-        {paloName(card.palo)}
-      </span>
-    </button>
+      disabled={disabled}
+      testid={testid}
+    />
   );
 }
 
@@ -34,7 +19,7 @@ export default function Hand({ cards, myTurn, onPlay }) {
         className="mano vacia flex min-h-[118px] items-center gap-2.5"
         data-testid="mano"
       >
-        <span className="dorso text-4xl text-crema/50">🂠</span>
+        <CardBack className="spanish-card-back--hand" />
       </div>
     );
   }

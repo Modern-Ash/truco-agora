@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node dev.mjs",
+    "dev:web": "vite",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "node e2e.mjs",
-    "dev:api": "cd .. && .venv/bin/python -m uvicorn truco.api:app --reload"
+    "dev:api": "cd .. && TRUCO_LOG_LEVEL=DEBUG TRUCO_LOG_FILE=./logs/truco-backend-debug.log .venv/bin/python -m uvicorn truco.api:app --reload"
   },
   "dependencies": {
     "react": "^19.2.8",

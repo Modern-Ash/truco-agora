@@ -7,7 +7,7 @@ from truco.cards import Card
 from truco.controller import PlayerController, VisibleState
 
 # Canto que solo aparece en la fase previa a la primera carta (reglas-v2.md)
-FASE_ENVITE_CALLS = {"envido", "flor"}
+FASE_ENVITE_CALLS = {"envido", "real_envido", "falta_envido", "flor"}
 PASES = {"paso", "no_envido"}
 
 

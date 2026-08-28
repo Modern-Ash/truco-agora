@@ -17,18 +17,28 @@ async function req(path, options = {}) {
 export function createMatch({
   mode, target_score, players, seed,
   engine, engine_provider, engine_model, step_mode,
+  team_names, team_bluff_levels, flor_enabled,
 }) {
   return req("/matches", {
     method: "POST",
     body: JSON.stringify({
       mode, target_score, players, seed,
       engine, engine_provider, engine_model, step_mode,
+      team_names, team_bluff_levels, flor_enabled,
     }),
   });
 }
 
-export function getState(matchId, player) {
-  const q = player ? `?player=${encodeURIComponent(player)}` : "";
+export function getLLMModels(provider) {
+  const params = new URLSearchParams({ provider });
+  return req(`/llm/models?${params}`);
+}
+
+export function getState(matchId, player, spectator = false) {
+  const params = new URLSearchParams();
+  if (player) params.set("player", player);
+  if (spectator) params.set("spectator", "true");
+  const q = params.size ? `?${params}` : "";
   return req(`/matches/${matchId}/state${q}`);
 }
 

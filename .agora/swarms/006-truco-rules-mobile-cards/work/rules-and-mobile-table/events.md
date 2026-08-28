@@ -1,0 +1,23 @@
+# Work events
+
+- 2026-08-27T11:11:31.534189Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T11:17:26.698498Z | artifact.added | kind=spec uri=repo://docs/rules-mobile-cards-spec.md actor=project:owner
+- 2026-08-27T11:17:26.917257Z | artifact.added | kind=implementation-plan uri=repo://docs/rules-mobile-cards-plan.md actor=project:agent
+- 2026-08-27T11:17:27.131387Z | work.criterion-satisfied | criterion=rules-audit actor=project:owner
+- 2026-08-27T11:17:27.364276Z | work.criterion-satisfied | criterion=core-rules actor=project:owner
+- 2026-08-27T11:17:27.590026Z | work.criterion-satisfied | criterion=flor-variant actor=project:owner
+- 2026-08-27T11:17:27.824217Z | work.criterion-satisfied | criterion=mobile-lobby actor=project:owner
+- 2026-08-27T11:17:28.062618Z | work.criterion-satisfied | criterion=spanish-deck actor=project:owner
+- 2026-08-27T11:17:28.305383Z | work.criterion-satisfied | criterion=verification actor=project:owner
+- 2026-08-27T11:30:55.888066Z | artifact.added | kind=source-code uri=repo://truco/engine.py actor=project:agent
+- 2026-08-27T11:30:56.115617Z | artifact.added | kind=source-code uri=repo://webapp/src/components/SpanishCard.jsx actor=project:agent
+- 2026-08-27T11:30:56.339992Z | artifact.added | kind=source-code uri=repo://webapp/src/Lobby.jsx actor=project:agent
+- 2026-08-27T11:30:56.573625Z | artifact.added | kind=test-report uri=repo://docs/rules-mobile-cards-test-report.md actor=project:agent
+- 2026-08-27T11:30:56.798821Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T11:30:57.021515Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T11:31:01.023834Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T11:31:01.243907Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T11:31:01.470112Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T11:31:01.700155Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T11:31:07.103791Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T11:31:07.328037Z | work.transitioned | from=verifying to=completed actor=project:owner

@@ -1,0 +1,30 @@
+# Work events
+
+- 2026-08-25T12:50:09.819260Z | work.created | state=drafting actor=project:owner
+- 2026-08-25T12:50:19.490636Z | artifact.added | kind=spec uri=repo://docs/default-names-fix.md actor=project:owner
+- 2026-08-25T12:50:19.727721Z | artifact.added | kind=source-code uri=repo://webapp/src/api.js actor=project:agent
+- 2026-08-25T12:50:19.971179Z | artifact.added | kind=test-report uri=repo://docs/default-names-fix-test-report.md actor=project:agent
+- 2026-08-25T12:50:20.217770Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T12:50:20.458034Z | work.criterion-satisfied | criterion=payload-forwarded actor=project:owner
+- 2026-08-25T12:50:20.708702Z | work.criterion-satisfied | criterion=backend-custom-names actor=project:owner
+- 2026-08-25T12:50:20.951631Z | work.criterion-satisfied | criterion=no-regression actor=project:owner
+- 2026-08-25T12:50:27.016737Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-25T12:50:27.263945Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-25T12:50:27.517248Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-25T12:50:27.767162Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T16:23:50.526791Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T16:25:38.410786Z | artifact.added | kind=spec uri=repo://docs/default-names-fix.md actor=project:owner
+- 2026-08-25T16:25:38.615774Z | artifact.added | kind=source-code uri=repo://webapp/src/Lobby.jsx actor=project:agent
+- 2026-08-25T16:25:38.839574Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-25T16:25:39.061141Z | artifact.added | kind=test-report uri=repo://docs/default-names-fix-test-report.md actor=project:agent
+- 2026-08-25T16:25:39.282466Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T16:25:39.510812Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T16:32:59.020910Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T16:40:40.261707Z | artifact.added | kind=spec uri=repo://docs/default-names-fix.md actor=project:agent
+- 2026-08-25T16:40:40.465830Z | artifact.added | kind=source-code uri=repo://webapp/src/teamNames.js actor=project:agent
+- 2026-08-25T16:40:40.680049Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Scoreboard.jsx actor=project:agent
+- 2026-08-25T16:40:40.878831Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T16:40:41.085837Z | artifact.added | kind=source-code uri=repo://webapp/src/Mesa.jsx actor=project:agent
+- 2026-08-25T16:40:41.297185Z | artifact.added | kind=test-report uri=repo://docs/default-names-fix-test-report.md actor=project:agent
+- 2026-08-25T16:40:41.499093Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-25T16:40:41.700771Z | work.transitioned | from=implementing to=verifying actor=project:agent

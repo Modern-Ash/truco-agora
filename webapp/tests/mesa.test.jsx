@@ -2,13 +2,20 @@ import React from "react";
 import { render, screen, waitFor, within, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Table from "../src/components/Table.jsx";
+import Mesa from "../src/Mesa.jsx";
 import { getState, postAction, postSena, postStep } from "../src/api.js";
+import { matchConfigKey, spectatorKey } from "../src/matchStorage.js";
+import { playTableSound } from "../src/tableAudio.js";
 
 vi.mock("../src/api.js", () => ({
   getState: vi.fn(),
   postAction: vi.fn(),
   postSena: vi.fn(),
   postStep: vi.fn(),
+}));
+
+vi.mock("../src/tableAudio.js", () => ({
+  playTableSound: vi.fn().mockResolvedValue(true),
 }));
 
 const BASE = {
@@ -45,14 +52,20 @@ function estado1v1(over = {}) {
   };
 }
 
-test("mesa muestra mano propia, rival, mazo y marcador", () => {
+test("mesa muestra mano propia, rival y marcador integrado sin icono de mazo", () => {
   getState.mockResolvedValue(estado1v1());
   render(<Table state={estado1v1()} matchId="m1" seat="Ana" />);
   expect(screen.getByTestId("carta-oro-7")).toBeInTheDocument();
   expect(screen.getByTestId("carta-espada-1")).toBeInTheDocument();
   expect(screen.getByTestId("slot-Beto")).toBeInTheDocument();
-  expect(screen.getByTestId("mazo")).toBeInTheDocument();
+  expect(screen.queryByTestId("mazo")).not.toBeInTheDocument();
   expect(screen.getByTestId("equipo-Equipo 1")).toHaveTextContent("4");
+  expect(screen.getByTestId("table-scoreboard")).toContainElement(
+    screen.getByTestId("marcador")
+  );
+  expect(document.querySelector(".game-player-stage")).toContainElement(
+    screen.getByTestId("table-scoreboard")
+  );
 });
 
 test("indica turno propio con chip MANO y resalta al que juega", () => {
@@ -61,6 +74,7 @@ test("indica turno propio con chip MANO y resalta al que juega", () => {
   render(<Table state={st} matchId="m1" seat="Ana" />);
   expect(screen.getByText("MANO")).toBeInTheDocument();
   expect(screen.getByText("TU TURNO")).toBeInTheDocument();
+  expect(screen.getByTestId("mi-zona")).toHaveClass("player-own-zone--mano");
 });
 
 test("banner de turno muestra '¡Tu turno!' cuando te toca a vos", () => {
@@ -74,6 +88,15 @@ test("banner de turno muestra el nombre del rival cuando no te toca a vos", () =
   const st = estado1v1({ turn: "Beto" });
   render(<Table state={st} matchId="m1" seat="Ana" />);
   expect(screen.getByTestId("turn-banner")).toHaveTextContent("Turno de Beto");
+});
+
+test("una mesa mixta identifica proveedor y modelo del rival LLM", () => {
+  const st = estado1v1();
+  st.others[0].agent = { provider: "claude", model: "sonnet" };
+  render(<Table state={st} matchId="m1" seat="Ana" />);
+  expect(screen.getByTestId("agent-identity-Beto")).toHaveTextContent(
+    "Claude · sonnet"
+  );
 });
 
 test("muestra 'esperando a X' cuando no es tu turno y no hay decisión pendiente", () => {
@@ -251,7 +274,7 @@ test("fin de partida muestra ganador y revancha", () => {
   const st = estado1v1({ finished: true, winner: "Equipo 1", turn: null, mano: null });
   getState.mockResolvedValue(st);
   render(<Table state={st} matchId="m1" seat="Ana" />);
-  expect(screen.getByTestId("fin-partida")).toHaveTextContent("Ganó Equipo 1");
+  expect(screen.getByTestId("fin-partida")).toHaveTextContent("Ganó Ana");
 });
 
 function estado2v2(over = {}) {
@@ -350,11 +373,45 @@ function estadoSpectator(over = {}) {
       { name: "Equipo 2", score: 0, players: ["Beto"] },
     ],
     others: [
-      { name: "Ana", team: "Equipo 1", played: [] },
-      { name: "Beto", team: "Equipo 2", played: [] },
+      {
+        name: "Ana",
+        team: "Equipo 1",
+        agent: {
+          provider: "codex",
+          model: "gpt-5.6-sol",
+          bluff_level: "mentiroso",
+          bluff_scope: "team",
+        },
+        hand: [
+          { palo: "oro", numero: 7 },
+          { palo: "espada", numero: 1 },
+          { palo: "copa", numero: 12 },
+        ],
+        played: [],
+      },
+      {
+        name: "Beto",
+        team: "Equipo 2",
+        agent: {
+          provider: "claude",
+          model: "sonnet",
+          bluff_level: "cauteloso",
+          bluff_scope: "team",
+        },
+        hand: [
+          { palo: "basto", numero: 1 },
+          { palo: "oro", numero: 6 },
+          { palo: "copa", numero: 4 },
+        ],
+        played: [],
+      },
     ],
     you: null,
     pending_step: { player: "Ana", kind: "card" },
+    step_generation: 1,
+    step_mode: true,
+    table_events: [],
+    engine_config: { kind: "llm", provider: "codex", model: "gpt-5.6-terra" },
     ...over,
   };
 }
@@ -363,14 +420,448 @@ test("vista de espectador con pending_step muestra los controles de paso a paso"
   const st = estadoSpectator();
   render(<Table state={st} matchId="m1" seat={null} />);
   expect(screen.getByTestId("step-controls")).toBeInTheDocument();
-  expect(screen.getByTestId("step-controls")).toHaveTextContent("Ana");
-  expect(screen.getByTestId("step-controls")).toHaveTextContent("jugar una carta");
+  expect(screen.getByTestId("step-controls")).toHaveAttribute("data-collapsed", "true");
+  expect(screen.getByTestId("step-controls")).not.toHaveTextContent("Próxima movida");
+  expect(screen.getByTestId("auto-play")).toBeChecked();
+  expect(screen.getByTestId("spectator-hand-Ana").children).toHaveLength(3);
+  expect(screen.getByTestId("spectator-hand-Beto").children).toHaveLength(3);
+  expect(screen.getByTestId("played-zone-Ana")).toBeInTheDocument();
+  expect(screen.getAllByTestId(/played-placeholder-Ana-/)).toHaveLength(1);
+  expect(screen.queryByTestId("slot-Ana")).not.toBeInTheDocument();
+  expect(screen.getByText("Jugador · Ana")).toBeInTheDocument();
+  expect(screen.getByText("Jugador · Beto")).toBeInTheDocument();
+  expect(screen.queryByText("Equipo 1")).not.toBeInTheDocument();
+  expect(screen.queryByText("Equipo 2")).not.toBeInTheDocument();
+  expect(screen.getByTestId("agent-identity-Ana")).toHaveTextContent(
+    "Codex · gpt-5.6-sol"
+  );
+  expect(screen.getByTestId("agent-identity-Beto")).toHaveTextContent(
+    "Claude · sonnet"
+  );
+  expect(screen.getByTestId("picardia-Ana")).toHaveTextContent(
+    "Picardía · Mentiroso"
+  );
+  expect(screen.getByTestId("picardia-Beto")).toHaveTextContent(
+    "Picardía · Cauteloso"
+  );
+  expect(screen.getByTestId("engine-llm-identity")).toHaveTextContent(
+    "Codex · gpt-5.6-terra"
+  );
 });
 
-test("sin pending_step no muestra los controles de paso a paso", () => {
+test("mantiene fija la identidad real del motor ante snapshots transitorios", async () => {
+  const initial = estadoSpectator({
+    engine_config: { kind: "llm", provider: "codex", model: null },
+  });
+  const transient = estadoSpectator({
+    pending_step: null,
+    engine_config: undefined,
+  });
+  const { rerender } = render(<Table state={initial} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("engine-llm-identity")).toHaveTextContent(
+    "Motor de reglas · Codex"
+  );
+  expect(screen.getByTestId("engine-llm-identity")).not.toHaveTextContent(
+    "modelo predeterminado"
+  );
+
+  rerender(<Table state={transient} matchId="m1" seat={null} />);
+
+  await waitFor(() => expect(screen.getByTestId("engine-llm-identity")).toHaveTextContent(
+    "Motor de reglas · Codex"
+  ));
+});
+
+test("grafica las fases de mezcla y reparto dentro del paño", async () => {
+  vi.useFakeTimers();
+  try {
+    render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+    expect(screen.getByTestId("deal-sequence")).toHaveTextContent("Mezclando el mazo");
+    expect(screen.getAllByLabelText("Carta boca abajo")).toHaveLength(4);
+    expect(screen.getAllByTestId(/spectator-card-/)).toHaveLength(6);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(480); });
+    expect(screen.getByTestId("deal-sequence")).toHaveTextContent("Repartiendo cartas");
+    expect(screen.getAllByLabelText("Carta boca abajo")).toHaveLength(6);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(770); });
+    expect(screen.queryByTestId("deal-sequence")).not.toBeInTheDocument();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("permite activar el sonido accesible de mezcla y reparto", async () => {
+  const user = userEvent.setup();
+  localStorage.removeItem("truco:table-sound");
+  playTableSound.mockClear();
+  render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+  const toggle = screen.getByTestId("table-sound-toggle");
+  expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+  await user.click(toggle);
+
+  expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await waitFor(() => expect(playTableSound).toHaveBeenCalledWith("shuffle"));
+  expect(localStorage.getItem("truco:table-sound")).toBe("1");
+
+  await user.click(toggle);
+});
+
+test("mantiene visible el canto LLM y su respuesta durante Preparando jugada", async () => {
+  const live = estadoSpectator({
+    call_vigente: "truco",
+    table_events: [
+      { id: 1, type: "call", player: "Ana", call: "truco" },
+    ],
+    pending_step: { player: "Beto", kind: "response", call: "truco" },
+  });
+  const preparing = estadoSpectator({
+    call_vigente: null,
+    table_events: [
+      { id: 1, type: "call", player: "Ana", call: "truco" },
+      { id: 2, type: "call_response", player: "Beto", call: "truco", response: "quiero" },
+    ],
+    pending_step: null,
+    step_generation: 2,
+  });
+  const { rerender } = render(<Table state={live} matchId="m1" seat={null} />);
+  fireEvent.click(screen.getByTestId("auto-play"));
+
+  expect(screen.getByTestId("player-call-chat-Beto")).toHaveTextContent("Respondiendo");
+  expect(screen.getByTestId("call-typing-Beto")).toHaveTextContent("pensando respuesta");
+  expect(within(screen.getByTestId("player-call-chat-Ana")).getByText("¡Truco!")).toBeInTheDocument();
+
+  rerender(<Table state={preparing} matchId="m1" seat={null} />);
+  await waitFor(() => expect(screen.getByTestId("table-wait-status")).toHaveTextContent(
+    "Preparando jugada"
+  ));
+  expect(within(screen.getByTestId("player-call-chat-Ana")).getByText("¡Truco!")).toBeInTheDocument();
+  expect(within(screen.getByTestId("player-call-chat-Ana")).getByText("cantó")).toBeInTheDocument();
+  expect(within(screen.getByTestId("player-call-chat-Beto")).getByText("Quiero")).toBeInTheDocument();
+  expect(within(screen.getByTestId("player-call-chat-Beto")).getByText("respondió a Truco")).toBeInTheDocument();
+  expect(screen.getByTestId("call-announcement-Ana")).toBeInTheDocument();
+  expect(screen.getByTestId("call-announcement-Beto")).toBeInTheDocument();
+});
+
+test("presenta los cantos como una conversación alineada por jugador", () => {
+  const state = estadoSpectator({
+    table_events: [
+      { id: 1, type: "call", player: "Ana", call: "envido" },
+      { id: 2, type: "call", player: "Beto", call: "real_envido", responds_to: "envido" },
+      { id: 3, type: "call", player: "Ana", call: "falta_envido", responds_to: "real_envido" },
+      { id: 4, type: "call_response", player: "Beto", call: "falta_envido", response: "quiero" },
+    ],
+  });
+  render(<Table state={state} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("call-announcement-Ana")).toHaveAttribute("role", "log");
+  expect(screen.getByTestId("call-announcement-Beto")).toHaveAttribute("role", "log");
+  expect(screen.getAllByTestId(/call-chat-message-/)).toHaveLength(4);
+  expect(screen.getByTestId("player-call-chat-Ana")).toHaveClass("player-call-chat--top");
+  expect(screen.getByTestId("player-call-chat-Beto")).toHaveClass("player-call-chat--bottom");
+  expect(screen.getByTestId("spectator-player-Ana")).toHaveClass("spectator-player-panel");
+  expect(screen.getByTestId("player-call-chat-Ana")).toHaveClass("spectator-player-panel");
+  expect(screen.getByTestId("spectator-player-Beto")).toHaveClass("spectator-player-panel");
+  expect(screen.getByTestId("player-call-chat-Beto")).toHaveClass("spectator-player-panel");
+  expect(screen.getByTestId("spectator-player-Ana").parentElement).toHaveClass(
+    "spectator-player-cluster--top"
+  );
+  expect(screen.getByTestId("spectator-player-Beto").parentElement).toHaveClass(
+    "spectator-player-cluster--bottom"
+  );
+  expect(screen.getByTestId("call-chat-message-3")).toHaveTextContent("Falta Envido");
+  expect(within(screen.getByTestId("call-chat-message-4")).getByText("Quiero")).toBeInTheDocument();
+  expect(within(screen.getByTestId("call-chat-message-4")).getByText("respondió a Falta Envido")).toBeInTheDocument();
+});
+
+test("explica explícitamente cuando todavía no hubo cantos", () => {
+  render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("no-call-status-Ana")).toHaveTextContent("Todavía no cantó");
+  expect(screen.getByTestId("no-call-status-Beto")).toHaveTextContent("Todavía no cantó");
+  expect(screen.queryByTestId("legacy-events-warning")).not.toBeInTheDocument();
+});
+
+test("avisa cuando la mesa está conectada a un backend antiguo sin eventos", () => {
+  const legacy = estadoSpectator();
+  delete legacy.table_events;
+  render(<Table state={legacy} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("legacy-events-warning")).toHaveTextContent(
+    "Servidor sin registro de cantos"
+  );
+});
+
+test("un snapshot transitorio vacío no borra las imágenes de las cartas", async () => {
+  const stable = estadoSpectator();
+  const transient = estadoSpectator({
+    pending_step: null,
+    step_generation: 2,
+    others: stable.others.map((player) => ({ ...player, hand: [] })),
+  });
+  const { rerender } = render(<Table state={stable} matchId="m1" seat={null} />);
+  fireEvent.click(screen.getByTestId("auto-play"));
+
+  expect(screen.getAllByTestId(/spectator-card-/)).toHaveLength(6);
+  rerender(<Table state={transient} matchId="m1" seat={null} />);
+
+  await waitFor(() => expect(screen.getAllByTestId(/spectator-card-/)).toHaveLength(6));
+  expect(screen.getByTestId("table-wait-status")).toHaveTextContent("Preparando jugada");
+});
+
+test("reserva tres lugares de carta para que el puesto y el paño no cambien de tamaño", () => {
+  const state = estadoSpectator();
+  state.others[0].hand = [{ palo: "oro", numero: 7 }];
+  state.others[1].hand = [];
+  render(<Table state={state} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("spectator-player-Ana")).toHaveClass(
+    "spectator-player-card"
+  );
+  expect(screen.getByTestId("spectator-hand-Ana")).toHaveClass("spectator-hand");
+  expect(screen.getAllByTestId(/spectator-hand-placeholder-Ana-/)).toHaveLength(2);
+  expect(screen.getAllByTestId(/spectator-hand-placeholder-Beto-/)).toHaveLength(3);
+  expect(screen.getByText("Beto ya no tiene cartas en la mano")).toHaveClass("sr-only");
+});
+
+test("pantalla y arena de espectador comparten el shell centrado", () => {
+  render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("mesa")).toHaveClass("game-screen");
+  expect(screen.getByTestId("spectator-arena")).toHaveClass("game-shell");
+  expect(screen.getByTestId("spectator-felt")).toHaveClass("spectator-felt");
+  expect(screen.getByTestId("spectator-felt")).toContainElement(
+    screen.getByTestId("table-scoreboard")
+  );
+  expect(screen.queryByTestId("mazo")).not.toBeInTheDocument();
+});
+
+test("marca con un recuadro dorado al participante que tiene la mano", () => {
+  render(<Table state={estadoSpectator({ mano: "Ana", turn: "Beto" })} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("spectator-player-Ana")).toHaveClass(
+    "spectator-player-card--mano"
+  );
+  expect(screen.getByTestId("spectator-player-Beto")).not.toHaveClass(
+    "spectator-player-card--mano"
+  );
+});
+
+test("la mesa de un jugador también usa el shell central", () => {
+  render(<Table state={estado1v1()} matchId="m1" seat="Ana" />);
+  expect(document.querySelector(".game-player-stage")).toHaveClass("game-shell");
+});
+
+test("la apertura de la mesa muestra un spinner de espera", () => {
+  getState.mockReturnValue(new Promise(() => {}));
+
+  render(<Mesa matchId="m1" />);
+
+  expect(screen.getByText("Abriendo la mesa…")).toHaveAttribute("role", "status");
+  expect(screen.getByTestId("opening-wait-spinner")).toBeInTheDocument();
+});
+
+test("la reconexión de la mesa muestra un spinner de espera", async () => {
+  getState.mockRejectedValue(new Error("red caída"));
+
+  render(<Mesa matchId="m1" />);
+
+  expect(await screen.findByTestId("conn-error")).toHaveTextContent("Reintentando");
+  expect(screen.getByTestId("retry-wait-spinner")).toBeInTheDocument();
+});
+
+test("una partida marcada como espectador salta la elección de asiento", async () => {
+  localStorage.setItem(spectatorKey("m1"), "1");
+  getState.mockResolvedValue(estadoSpectator());
+
+  render(<Mesa matchId="m1" />);
+
+  expect(await screen.findByTestId("spectator-arena")).toBeInTheDocument();
+  expect(screen.queryByText("Elegí tu asiento")).not.toBeInTheDocument();
+  expect(getState).toHaveBeenCalledWith("m1", undefined, true);
+});
+
+test("recupera las manos desde cada jugador si la API de espectador es anterior", async () => {
+  localStorage.setItem(spectatorKey("m1"), "1");
+  const legacy = estadoSpectator();
+  legacy.others = legacy.others.map(({ hand: _hand, ...player }) => player);
+  getState
+    .mockResolvedValueOnce(legacy)
+    .mockResolvedValueOnce({
+      you: { name: "Ana", hand: [{ palo: "oro", numero: 7 }] },
+    })
+    .mockResolvedValueOnce({
+      you: { name: "Beto", hand: [{ palo: "copa", numero: 4 }] },
+    });
+
+  render(<Mesa matchId="m1" />);
+
+  expect(await screen.findByTestId("spectator-card-Ana-0")).toBeInTheDocument();
+  expect(screen.getByTestId("spectator-card-Beto-0")).toBeInTheDocument();
+  expect(getState).toHaveBeenNthCalledWith(1, "m1", undefined, true);
+  expect(getState).toHaveBeenNthCalledWith(2, "m1", "Ana");
+  expect(getState).toHaveBeenNthCalledWith(3, "m1", "Beto");
+});
+
+test("recupera proveedor y modelo guardados si el snapshot todavía no los expone", async () => {
+  localStorage.setItem(spectatorKey("m1"), "1");
+  localStorage.setItem(matchConfigKey("m1"), JSON.stringify({
+    engine: "llm",
+    engine_provider: "codex",
+    engine_model: "gpt-5.6-terra",
+    players: [
+      { name: "Ana", kind: "agent", provider: "codex", model: "gpt-5.6-sol" },
+      { name: "Beto", kind: "agent", provider: "claude", model: "sonnet" },
+    ],
+  }));
+  const legacy = estadoSpectator();
+  legacy.others = legacy.others.map(({ agent: _agent, ...player }) => player);
+  delete legacy.engine_config;
+  getState.mockResolvedValue(legacy);
+
+  render(<Mesa matchId="m1" />);
+
+  expect(await screen.findByTestId("agent-identity-Ana")).toHaveTextContent(
+    "LLM · Codex · gpt-5.6-sol"
+  );
+  expect(screen.getByTestId("agent-identity-Beto")).toHaveTextContent(
+    "LLM · Claude · sonnet"
+  );
+  expect(screen.getByTestId("engine-llm-identity")).toHaveTextContent(
+    "Codex · gpt-5.6-terra"
+  );
+});
+
+test("no inyecta proveedor ni modelo desde la última partida global", async () => {
+  localStorage.setItem(spectatorKey("m1"), "1");
+  localStorage.removeItem(matchConfigKey("m1"));
+  localStorage.setItem("truco:lastConfig", JSON.stringify({
+    engine: "llm",
+    engine_provider: "codex",
+    engine_model: "modelo-ajeno",
+    players: [
+      { name: "Ana", kind: "agent", provider: "codex", model: "agente-ajeno" },
+      { name: "Beto", kind: "agent", provider: "codex", model: "agente-ajeno" },
+    ],
+  }));
+  const legacy = estadoSpectator();
+  legacy.others = legacy.others.map(({ agent: _agent, ...player }) => player);
+  delete legacy.engine_config;
+  getState.mockResolvedValue(legacy);
+
+  render(<Mesa matchId="m1" />);
+
+  expect(await screen.findByTestId("spectator-arena")).toBeInTheDocument();
+  expect(screen.queryByTestId("engine-llm-identity")).not.toBeInTheDocument();
+  expect(screen.queryByText("modelo-ajeno")).not.toBeInTheDocument();
+  expect(screen.queryByText("agente-ajeno")).not.toBeInTheDocument();
+});
+
+test("sin pending_step mantiene los controles y deshabilita siguiente", () => {
   const st = estadoSpectator({ pending_step: null });
   render(<Table state={st} matchId="m1" seat={null} />);
-  expect(screen.queryByTestId("step-controls")).not.toBeInTheDocument();
+  expect(screen.getByTestId("step-controls")).toBeInTheDocument();
+  expect(screen.getByTestId("step-controls")).not.toHaveTextContent(
+    "Preparando la próxima movida"
+  );
+  expect(screen.getByTestId("step-controls")).toHaveClass("step-controls--collapsed");
+  expect(screen.getByTestId("siguiente-movida")).toBeDisabled();
+  expect(screen.getByTestId("step-wait-spinner")).toBeInTheDocument();
+  expect(screen.getByTestId("table-wait-status")).toHaveTextContent(
+    "Preparando jugada"
+  );
+  expect(screen.getByTestId("table-wait-status")).toHaveClass(
+    "top-1/2",
+    "-translate-y-1/2",
+    "justify-center"
+  );
+});
+
+test("el refresco entre pasos conserva el mismo bloque y botón", async () => {
+  const first = estadoSpectator();
+  const { rerender } = render(<Table state={first} matchId="m1" seat={null} />);
+  const controls = screen.getByTestId("step-controls");
+  const button = screen.getByTestId("siguiente-movida");
+  const trick = screen.getByTestId("spectator-trick");
+
+  rerender(
+    <Table
+      state={estadoSpectator({ pending_step: null, step_generation: 2, turn: null })}
+      matchId="m1"
+      seat={null}
+    />
+  );
+
+  await waitFor(() => expect(controls).not.toHaveTextContent("Preparando la próxima movida"));
+  expect(screen.getByTestId("step-controls")).toBe(controls);
+  expect(screen.getByTestId("siguiente-movida")).toBe(button);
+  expect(button).toBeDisabled();
+  expect(screen.getByTestId("spectator-trick")).toBe(trick);
+  expect(screen.getByTestId("table-wait-status")).toHaveTextContent(
+    "Preparando jugada"
+  );
+  expect(screen.queryByTestId("turn-status-slot")).not.toBeInTheDocument();
+  expect(screen.getByTestId("step-wait-spinner")).toBeInTheDocument();
+});
+
+test("muestra spinner y conserva el botón mientras resuelve una jugada", async () => {
+  const user = userEvent.setup();
+  let resolveStep;
+  postStep.mockReturnValue(new Promise((resolve) => { resolveStep = resolve; }));
+  render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+  const button = screen.getByTestId("siguiente-movida");
+  await user.click(button);
+
+  expect(screen.getByTestId("step-controls")).not.toHaveTextContent("Resolviendo la jugada");
+  expect(screen.getByTestId("step-controls")).toHaveClass("step-controls--collapsed");
+  expect(screen.getByTestId("table-wait-status")).toHaveTextContent(
+    "Resolviendo jugada"
+  );
+  expect(screen.getByTestId("step-wait-spinner")).toBeInTheDocument();
+  expect(button).toBeDisabled();
+
+  await act(async () => {
+    resolveStep(estadoSpectator({ pending_step: null, turn: null }));
+  });
+});
+
+test("muestra la recuperación de la mano dentro de la baza", () => {
+  render(
+    <Table
+      state={estadoSpectator({
+        pending_step: null,
+        turn: null,
+        recovering: true,
+        recovery_error: "RuntimeError: transitorio",
+      })}
+      matchId="m1"
+      seat={null}
+    />
+  );
+
+  expect(screen.getByTestId("table-wait-status")).toHaveTextContent(
+    "Recuperando la mano"
+  );
+  expect(screen.queryByTestId("turn-status-slot")).not.toBeInTheDocument();
+});
+
+test("el dock se expande sólo al pasar de autoplay a control manual", async () => {
+  const user = userEvent.setup();
+  render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+  const controls = screen.getByTestId("step-controls");
+  expect(controls).toHaveAttribute("data-collapsed", "true");
+
+  await user.click(screen.getByTestId("auto-play"));
+
+  expect(controls).toHaveAttribute("data-collapsed", "false");
+  expect(controls).toHaveTextContent("Próxima movida");
+  expect(controls).toHaveTextContent("Ana");
 });
 
 test("click en 'Siguiente movida' llama a postStep y refresca el estado", async () => {
@@ -381,6 +872,7 @@ test("click en 'Siguiente movida' llama a postStep y refresca el estado", async 
   render(<Table state={st} matchId="m1" seat={null} />);
 
   await user.click(screen.getByTestId("siguiente-movida"));
+  expect(screen.getByTestId("auto-play")).not.toBeChecked();
   await waitFor(() => expect(postStep).toHaveBeenCalledWith("m1"));
   await waitFor(() =>
     expect(within(screen.getByTestId("step-controls")).getByText(/Beto/)).toBeInTheDocument()
@@ -395,7 +887,6 @@ test("auto-play llama a postStep automáticamente tras el delay elegido", async 
     postStep.mockResolvedValue(estadoSpectator({ pending_step: null }));
     render(<Table state={st} matchId="m1" seat={null} />);
 
-    fireEvent.click(screen.getByTestId("auto-play"));
     fireEvent.change(screen.getByTestId("auto-play-delay"), { target: { value: "1000" } });
 
     expect(postStep).not.toHaveBeenCalled();
@@ -408,9 +899,104 @@ test("auto-play llama a postStep automáticamente tras el delay elegido", async 
   }
 });
 
+test("auto-play procesa rápido las decisiones internas antes de la carta", async () => {
+  vi.useFakeTimers();
+  try {
+    const st = estadoSpectator({
+      pending_step: { player: "Ana", kind: "action" },
+    });
+    postStep.mockClear();
+    postStep.mockResolvedValue(estadoSpectator({
+      pending_step: { player: "Ana", kind: "card" },
+      step_generation: 2,
+    }));
+    render(<Table state={st} matchId="m1" seat={null} />);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(199); });
+    expect(postStep).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(postStep).toHaveBeenCalledWith("m1");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("auto-play continúa con pasos consecutivos del mismo jugador y tipo", async () => {
+  vi.useFakeTimers();
+  try {
+    const first = estadoSpectator({ step_generation: 10 });
+    const second = estadoSpectator({ step_generation: 11 });
+    const third = estadoSpectator({ step_generation: 12, pending_step: null });
+    postStep.mockReset();
+    postStep.mockResolvedValueOnce(second).mockResolvedValueOnce(third);
+    render(<Table state={first} matchId="m1" seat={null} />);
+
+    fireEvent.change(screen.getByTestId("auto-play-delay"), { target: { value: "1000" } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(postStep).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000); });
+    expect(postStep).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("bazas de la mesa se muestran también en vista de espectador", () => {
   const st = estadoSpectator();
   st.others[0].played = [{ palo: "oro", numero: 7 }];
   render(<Table state={st} matchId="m1" seat={null} />);
+  expect(screen.getByTestId("spectator-felt")).toBeInTheDocument();
+  expect(screen.getByTestId("spectator-trick")).toBeInTheDocument();
+  expect(screen.getByTestId("played-card-Ana-0")).toHaveTextContent("7");
+  expect(screen.queryAllByTestId(/played-placeholder-Ana-/)).toHaveLength(0);
   expect(document.querySelector(".mini-carta")).toBeInTheDocument();
+});
+
+test("la carta viaja desde la mano del jugador hasta su lugar en la baza", async () => {
+  vi.useFakeTimers();
+  try {
+    localStorage.setItem("truco:table-sound", "1");
+    playTableSound.mockClear();
+    const initial = estadoSpectator({ mano: null });
+    const after = estadoSpectator({ mano: null, step_generation: 2 });
+    after.others[0].hand = after.others[0].hand.slice(1);
+    after.others[0].played = [{ palo: "oro", numero: 7 }];
+    const { rerender } = render(<Table state={initial} matchId="m1" seat={null} />);
+
+    rerender(<Table state={after} matchId="m1" seat={null} />);
+    await act(async () => {});
+
+    expect(screen.getByTestId("card-flight-Ana")).toHaveTextContent(
+      "Ana jugó 7 de oro"
+    );
+    expect(screen.getByTestId("played-card-Ana-0")).toHaveClass(
+      "trick-card--receiving"
+    );
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(620); });
+
+    expect(screen.queryByTestId("card-flight-Ana")).not.toBeInTheDocument();
+    expect(screen.getByTestId("played-card-Ana-0")).not.toHaveClass(
+      "trick-card--receiving"
+    );
+    expect(playTableSound).toHaveBeenCalledWith("card");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("la baza muestra solo la carta de la ronda vigente", () => {
+  const st = estadoSpectator();
+  st.others[0].played = [
+    { palo: "oro", numero: 7 },
+    { palo: "espada", numero: 1 },
+  ];
+  st.others[1].played = [{ palo: "copa", numero: 4 }];
+
+  render(<Table state={st} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId("spectator-trick")).toHaveTextContent("2.ª");
+  expect(screen.getByTestId("played-card-Ana-0")).toHaveTextContent("1");
+  expect(screen.queryByTestId("played-card-Beto-0")).not.toBeInTheDocument();
+  expect(screen.getByTestId("played-placeholder-Beto-0")).toBeInTheDocument();
 });

@@ -1,8 +1,10 @@
 # Spec: Reglas completas v2 (`reglas-completas-v2`)
 
-Fuente: https://www.bureaudejuegos.com/reglas-truco/
-Cierra los gaps de `spec.md` (flor y señas documentadas, no implementadas)
-y ajusta el envido a la tabla oficial.
+Fuentes contrastadas: reglamento ASART enlazado por
+[Juegos Nacionales Evita](https://www.argentina.gob.ar/turismoydeportes/juegosevita/truco),
+[Juegos Bonaerenses 2026](https://juegos.gba.gob.ar/wp-content/uploads/2026/reglamentos/especificos/deportes_adultos_mayores/truco.pdf)
+y el resumen ASART de [truco.ar](https://truco.ar/reglas). Cierra los gaps de
+`spec.md` y explicita las variantes que esas fuentes tratan de forma distinta.
 
 ## 1. Envido a regla oficial
 
@@ -24,9 +26,13 @@ y ajusta el envido a la tabla oficial.
 - **Cualquier jugador** puede iniciar el envido (turno desde el mano).
 - Empate de envido → gana el equipo mano.
 
-## 2. Flor
+## 2. Flor (variante configurable)
 
-- Flor = 3 cartas del mismo palo; valor = suma de valores + 20
+La mesa es **sin flor** por defecto. Al crearla se puede activar la variante
+**con flor**; no se mezclan ambas durante una partida.
+
+- Con la variante activa, Flor = 3 cartas del mismo palo; su declaración es
+  obligatoria y su valor es la suma de valores + 20
   (figuras valen 0). Se canta durante la primera ronda, antes del truco;
   **anula cualquier envite de envido pendiente o aceptado**.
 - Resolución:

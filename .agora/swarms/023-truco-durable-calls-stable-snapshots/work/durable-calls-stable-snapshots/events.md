@@ -1,0 +1,22 @@
+# Work events
+
+- 2026-08-27T22:10:21.851911Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T22:10:33.007305Z | artifact.added | kind=spec uri=repo://docs/rules-mobile-cards-spec.md actor=project:owner
+- 2026-08-27T22:10:33.272139Z | artifact.added | kind=source-code uri=repo://truco/step_mode.py actor=project:agent
+- 2026-08-27T22:10:33.530738Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-27T22:10:33.799422Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-27T22:10:34.072349Z | artifact.added | kind=source-code uri=repo://webapp/e2e.mjs actor=project:agent
+- 2026-08-27T22:10:34.336570Z | artifact.added | kind=test-report uri=repo://docs/rules-mobile-cards-test-report.md actor=project:agent
+- 2026-08-27T22:10:34.601059Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T22:10:34.872237Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T22:10:35.143916Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-27T22:10:35.411615Z | work.criterion-satisfied | criterion=durable-table-events actor=project:owner
+- 2026-08-27T22:10:35.682485Z | work.criterion-satisfied | criterion=independent-status-lanes actor=project:owner
+- 2026-08-27T22:10:35.948704Z | work.criterion-satisfied | criterion=transient-hand-retention actor=project:owner
+- 2026-08-27T22:10:36.215426Z | work.criterion-satisfied | criterion=durable-events-verification actor=project:owner
+- 2026-08-27T22:10:42.825382Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T22:10:43.097691Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T22:10:43.367270Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T22:10:43.657770Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T22:10:43.938596Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T22:10:44.225549Z | work.transitioned | from=verifying to=completed actor=project:owner

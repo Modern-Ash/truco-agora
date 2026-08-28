@@ -125,6 +125,48 @@ def test_2v2_turn_rotation():
     assert match.mano_index == 1
 
 
+def test_2v2_two_teammates_can_win_the_first_two_tricks():
+    match, t1, _ = make_match_2v2(seed=10)
+    first_teammate, second_teammate = t1.players
+    assert match._decide_hand_winner([first_teammate, second_teammate]).team is t1
+
+
+def test_equal_top_cards_from_same_team_do_not_make_a_trick_parda():
+    from truco.cards import Card
+
+    match, t1, t2 = make_match_2v2(seed=10)
+    winner = match._round_winner(
+        [
+            (t1.players[0], Card("oro", 3)),
+            (t2.players[0], Card("basto", 2)),
+            (t1.players[1], Card("copa", 3)),
+            (t2.players[1], Card("espada", 2)),
+        ]
+    )
+    assert winner is not None and winner.team is t1
+
+
+def test_equal_top_cards_from_opposing_teams_make_a_trick_parda():
+    from truco.cards import Card
+
+    match, t1, t2 = make_match_2v2(seed=10)
+    winner = match._round_winner(
+        [
+            (t1.players[0], Card("oro", 3)),
+            (t2.players[0], Card("basto", 3)),
+            (t1.players[1], Card("copa", 2)),
+            (t2.players[1], Card("espada", 2)),
+        ]
+    )
+    assert winner is None
+
+
+def test_only_team_that_accepted_truco_can_raise_to_retruco():
+    match, t1, t2 = make_match_2v2(seed=10)
+    assert match._available_truco_calls("truco", t1.players[0], t2) == []
+    assert match._available_truco_calls("truco", t2.players[0], t2) == ["retruco"]
+
+
 def test_gana_quien_alcanza_el_objetivo_primero_en_la_mano():
     from truco.cards import Card
 

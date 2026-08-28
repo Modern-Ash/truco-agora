@@ -1,0 +1,21 @@
+# Work events
+
+- 2026-08-27T21:47:01.341252Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T21:47:09.416194Z | artifact.added | kind=spec uri=repo://docs/rules-mobile-cards-spec.md actor=project:owner
+- 2026-08-27T21:47:09.647910Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-27T21:47:09.874476Z | artifact.added | kind=source-code uri=repo://webapp/src/styles.css actor=project:agent
+- 2026-08-27T21:47:10.102013Z | artifact.added | kind=source-code uri=repo://webapp/src/tableAudio.js actor=project:agent
+- 2026-08-27T21:47:10.364517Z | artifact.added | kind=test-report uri=repo://docs/rules-mobile-cards-test-report.md actor=project:agent
+- 2026-08-27T21:47:10.618951Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T21:47:10.862748Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T21:47:11.093129Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-27T21:47:11.312006Z | work.criterion-satisfied | criterion=spatial-card-flight actor=project:owner
+- 2026-08-27T21:47:11.530988Z | work.criterion-satisfied | criterion=single-card-landing actor=project:owner
+- 2026-08-27T21:47:11.753823Z | work.criterion-satisfied | criterion=card-flight-accessibility actor=project:owner
+- 2026-08-27T21:47:11.979217Z | work.criterion-satisfied | criterion=card-flight-verification actor=project:owner
+- 2026-08-27T21:47:16.787943Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T21:47:17.009150Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T21:47:17.231164Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T21:47:17.459862Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T21:47:17.677663Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T21:47:17.901051Z | work.transitioned | from=verifying to=completed actor=project:owner

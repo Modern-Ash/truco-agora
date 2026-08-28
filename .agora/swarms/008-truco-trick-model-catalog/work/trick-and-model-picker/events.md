@@ -1,0 +1,21 @@
+# Work events
+
+- 2026-08-27T11:47:31.982929Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T11:47:45.572705Z | artifact.added | kind=spec uri=repo://docs/rules-mobile-cards-spec.md actor=project:owner
+- 2026-08-27T11:47:45.825275Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-27T11:47:46.058684Z | artifact.added | kind=source-code uri=repo://webapp/src/components/ModelPicker.jsx actor=project:agent
+- 2026-08-27T11:47:46.283334Z | artifact.added | kind=source-code uri=repo://truco/llm_providers.py actor=project:agent
+- 2026-08-27T11:47:46.518494Z | artifact.added | kind=test-report uri=repo://docs/rules-mobile-cards-test-report.md actor=project:agent
+- 2026-08-27T11:47:46.765407Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T11:47:47.016085Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T11:47:47.251700Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-27T11:47:54.555229Z | work.criterion-satisfied | criterion=current-trick-layout actor=project:owner
+- 2026-08-27T11:47:54.799665Z | work.criterion-satisfied | criterion=provider-model-discovery actor=project:owner
+- 2026-08-27T11:47:55.061357Z | work.criterion-satisfied | criterion=model-picker-fallback actor=project:owner
+- 2026-08-27T11:47:55.317860Z | work.criterion-satisfied | criterion=amendment-verification actor=project:owner
+- 2026-08-27T11:47:55.592736Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T11:47:55.866853Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T11:47:56.128684Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T11:47:56.367408Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T11:47:56.594682Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T11:47:56.816876Z | work.transitioned | from=verifying to=completed actor=project:owner

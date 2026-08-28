@@ -9,14 +9,14 @@
 - **Tipo de proyecto:** webapp (React 19 + Vite + Tailwind CSS v4).
 
 ## Dirección estética
-- **Dirección:** Dark glassmorphism / web3 gaming — reemplaza el "paño verde fotorrealista"
-  clásico por una mesa digital-nativa: paneles de vidrio esmerilado sobre fondo casi negro
-  verde-teal, con el estado del juego comunicado por glow en vez de solo texto/bordes.
-- **Nivel de decoración:** intencional — glow suave, textura de vidrio, sin blobs 3D ni
-  gradiente violeta genérico de "AI slop".
-- **Mood:** casino digital serio pero vivo; sensación de HUD de juego, no de formulario web.
-- **Referencias:** tendencia "dark glassmorphism" / "liquid glass" en diseño web3 2026.
-- **Preview aprobado:** https://claude.ai/code/artifact/c3d9b86a-5b45-44e9-9fe0-c718e625d52f
+- **Dirección:** editorial criolla contemporánea. Paño verde profundo,
+  papel envejecido, tinta, latón y filetes finos; debe sentirse como una
+  mesa argentina, no como un dashboard web3.
+- **Nivel de decoración:** material y moderado. La baraja y el marcador son
+  los protagonistas; el brillo se reserva para estados interactivos.
+- **Mood:** club de barrio bien cuidado, juego social y legible.
+- **Baraja:** española de 40 cartas con orla, doble índice, pintas dibujadas,
+  figuras distintas para sota/caballo/rey y dorso propio.
 
 ## Tipografía
 - **Display/Hero:** Bricolage Grotesque — títulos, banners de canto ("¡Truco!", "Envido").
@@ -69,4 +69,5 @@
 ## Decisions Log
 | Fecha | Decisión | Razón |
 |-------|----------|-------|
-| 2026-08-24 | Sistema de diseño inicial: dark glassmorphism / web3 gaming | El usuario encontró el look "mesa de paño" vetusto y pidió algo más moderno tipo web3; se creó vía `/design-consultation` con research de tendencias 2026 |
+| 2026-08-24 | Sistema inicial dark glass/web3 | Primera dirección visual. |
+| 2026-08-27 | Editorial criollo, mobile-first y baraja española ilustrada | El HUD se sentía genérico, el lobby descentrado y las cartas poco reconocibles. |

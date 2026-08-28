@@ -1,0 +1,21 @@
+# Work events
+
+- 2026-08-27T21:43:17.677251Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T21:43:26.999916Z | artifact.added | kind=spec uri=repo://docs/rules-mobile-cards-spec.md actor=project:owner
+- 2026-08-27T21:43:27.224963Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-27T21:43:27.444707Z | artifact.added | kind=source-code uri=repo://webapp/src/styles.css actor=project:agent
+- 2026-08-27T21:43:27.668983Z | artifact.added | kind=source-code uri=repo://webapp/src/tableAudio.js actor=project:agent
+- 2026-08-27T21:43:27.901186Z | artifact.added | kind=test-report uri=repo://docs/rules-mobile-cards-test-report.md actor=project:agent
+- 2026-08-27T21:43:28.126732Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T21:43:28.347825Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T21:43:28.571515Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-27T21:43:28.800988Z | work.criterion-satisfied | criterion=shuffle-deal-visual actor=project:owner
+- 2026-08-27T21:43:29.029890Z | work.criterion-satisfied | criterion=optional-table-sound actor=project:owner
+- 2026-08-27T21:43:29.253559Z | work.criterion-satisfied | criterion=deal-sequence-accessibility actor=project:owner
+- 2026-08-27T21:43:29.477224Z | work.criterion-satisfied | criterion=deal-sequence-verification actor=project:owner
+- 2026-08-27T21:43:34.826241Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T21:43:35.048640Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T21:43:35.269330Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T21:43:35.502764Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T21:43:35.721057Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T21:43:35.941389Z | work.transitioned | from=verifying to=completed actor=project:owner

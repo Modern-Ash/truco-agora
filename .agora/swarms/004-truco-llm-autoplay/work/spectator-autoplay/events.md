@@ -1,0 +1,59 @@
+# Work events
+
+- 2026-08-25T13:38:08.834565Z | work.created | state=drafting actor=project:owner
+- 2026-08-25T13:40:53.307450Z | artifact.added | kind=spec uri=repo://docs/llm-autoplay.md actor=project:owner
+- 2026-08-25T13:40:53.557326Z | artifact.added | kind=source-code uri=repo://webapp/src/Lobby.jsx actor=project:agent
+- 2026-08-25T13:40:53.797029Z | artifact.added | kind=source-code uri=repo://webapp/src/Mesa.jsx actor=project:agent
+- 2026-08-25T13:40:54.049542Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T13:40:54.299789Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-25T13:40:54.546209Z | artifact.added | kind=test-report uri=repo://docs/llm-autoplay-test-report.md actor=project:agent
+- 2026-08-25T13:40:54.798000Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T13:40:58.304959Z | work.criterion-satisfied | criterion=spectator-auto actor=project:owner
+- 2026-08-25T13:40:58.549639Z | work.criterion-satisfied | criterion=configurable-delay actor=project:owner
+- 2026-08-25T13:40:58.790089Z | work.criterion-satisfied | criterion=manual-next actor=project:owner
+- 2026-08-25T13:40:59.036672Z | work.criterion-satisfied | criterion=continuous-autoplay actor=project:owner
+- 2026-08-25T13:40:59.274986Z | work.criterion-satisfied | criterion=no-regression actor=project:owner
+- 2026-08-25T13:41:04.273444Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-25T13:41:04.520380Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-25T13:41:04.770515Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-25T13:41:05.024868Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T13:46:35.216735Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T13:52:10.777029Z | artifact.added | kind=spec uri=repo://docs/llm-autoplay.md actor=project:owner
+- 2026-08-25T13:52:11.033435Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-25T13:52:11.292787Z | artifact.added | kind=source-code uri=repo://webapp/src/api.js actor=project:agent
+- 2026-08-25T13:52:11.563302Z | artifact.added | kind=source-code uri=repo://webapp/src/Mesa.jsx actor=project:agent
+- 2026-08-25T13:52:11.823715Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T13:52:12.102132Z | artifact.added | kind=source-code uri=repo://webapp/vite.config.js actor=project:agent
+- 2026-08-25T13:52:12.358202Z | artifact.added | kind=test-report uri=repo://docs/llm-autoplay-test-report.md actor=project:agent
+- 2026-08-25T13:52:12.597950Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T13:52:16.991309Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T13:54:56.179733Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T13:57:55.209061Z | artifact.added | kind=spec uri=repo://docs/llm-autoplay.md actor=project:owner
+- 2026-08-25T13:57:55.413076Z | artifact.added | kind=source-code uri=repo://webapp/src/Mesa.jsx actor=project:agent
+- 2026-08-25T13:57:55.616855Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T13:57:55.817945Z | artifact.added | kind=test-report uri=repo://docs/llm-autoplay-test-report.md actor=project:agent
+- 2026-08-25T13:57:56.035151Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T13:57:56.233051Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T13:58:23.703161Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T13:58:23.907004Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T14:02:46.671283Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T14:02:58.522298Z | artifact.added | kind=spec uri=repo://docs/llm-autoplay.md actor=project:owner
+- 2026-08-25T14:02:58.747555Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T14:02:58.956558Z | artifact.added | kind=test-report uri=repo://docs/llm-autoplay-test-report.md actor=project:agent
+- 2026-08-25T14:02:59.164726Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T14:02:59.379319Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T15:34:00.408742Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T15:36:02.094950Z | artifact.added | kind=spec uri=repo://docs/llm-autoplay.md actor=project:owner
+- 2026-08-25T15:36:02.303073Z | artifact.added | kind=spec uri=repo://docs/step-mode.md actor=project:owner
+- 2026-08-25T15:36:02.528619Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-25T15:36:02.756107Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-25T15:36:02.980703Z | artifact.added | kind=test-report uri=repo://docs/llm-autoplay-test-report.md actor=project:agent
+- 2026-08-25T15:36:03.203529Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T15:36:03.427337Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-25T15:37:47.655391Z | work.transitioned | from=verifying to=implementing actor=project:agent
+- 2026-08-25T15:37:47.868221Z | artifact.added | kind=spec uri=repo://docs/llm-autoplay.md actor=project:owner
+- 2026-08-25T15:37:48.070929Z | artifact.added | kind=source-code uri=repo://truco/controller.py actor=project:agent
+- 2026-08-25T15:37:48.276004Z | artifact.added | kind=source-code uri=repo://webapp/e2e.mjs actor=project:agent
+- 2026-08-25T15:37:48.475726Z | artifact.added | kind=test-report uri=repo://docs/llm-autoplay-test-report.md actor=project:agent
+- 2026-08-25T15:37:48.686057Z | evidence.added | type=test-suite result=success actor=project:agent
+- 2026-08-25T15:37:48.904134Z | work.transitioned | from=implementing to=verifying actor=project:agent

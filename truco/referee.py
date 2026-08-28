@@ -7,7 +7,14 @@ permita alterar el resultado. Su único efecto es producir texto.
 """
 from __future__ import annotations
 
+import logging
+import time
 from typing import List, Optional, Protocol
+
+from .observability import log_event
+
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient(Protocol):
@@ -32,13 +39,31 @@ class Referee:
         privadas de un jugador."""
         fallback = self._fallback_narration(snapshot)
         if self.client is None or not hasattr(self.client, "generate"):
+            log_event(logger, "referee.fallback", reason="provider_unavailable")
             return fallback
         prompt = self._build_prompt(snapshot)
+        started = time.monotonic()
+        log_event(logger, "referee.narration.start")
         try:
             text = self.client.generate(prompt)
-        except Exception:  # noqa: BLE001 - narración best-effort, nunca rompe la partida
+        except Exception as exc:  # noqa: BLE001 - narración best-effort
+            log_event(
+                logger,
+                "referee.narration.error",
+                severity=logging.WARNING,
+                error_type=type(exc).__name__,
+                duration_ms=round((time.monotonic() - started) * 1000, 1),
+            )
             return fallback
-        return text.strip() or fallback
+        narration = text.strip()
+        log_event(
+            logger,
+            "referee.narration.end" if narration else "referee.fallback",
+            reason=None if narration else "empty_response",
+            output_chars=len(narration),
+            duration_ms=round((time.monotonic() - started) * 1000, 1),
+        )
+        return narration or fallback
 
     def _build_prompt(self, snapshot: dict) -> str:
         teams = snapshot.get("teams", [])

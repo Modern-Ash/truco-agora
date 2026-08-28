@@ -1,0 +1,23 @@
+# Work events
+
+- 2026-08-27T12:26:19.523515Z | work.created | state=drafting actor=project:owner
+- 2026-08-27T12:26:34.533565Z | artifact.added | kind=spec uri=repo://docs/rules-mobile-cards-spec.md actor=project:owner
+- 2026-08-27T12:26:34.775489Z | artifact.added | kind=source-code uri=repo://truco/llm_providers.py actor=project:agent
+- 2026-08-27T12:26:35.023312Z | artifact.added | kind=source-code uri=repo://truco/api.py actor=project:agent
+- 2026-08-27T12:26:35.273612Z | artifact.added | kind=source-code uri=repo://webapp/src/Lobby.jsx actor=project:agent
+- 2026-08-27T12:26:35.521709Z | artifact.added | kind=source-code uri=repo://webapp/src/components/ModelPicker.jsx actor=project:agent
+- 2026-08-27T12:26:35.767238Z | artifact.added | kind=source-code uri=repo://webapp/src/components/Table.jsx actor=project:agent
+- 2026-08-27T12:26:36.012273Z | artifact.added | kind=test-report uri=repo://docs/rules-mobile-cards-test-report.md actor=project:agent
+- 2026-08-27T12:26:36.260289Z | evidence.added | type=tests result=success actor=project:agent
+- 2026-08-27T12:26:36.507575Z | evidence.added | type=build result=success actor=project:agent
+- 2026-08-27T12:26:36.748341Z | evidence.added | type=e2e result=success actor=project:agent
+- 2026-08-27T12:26:36.992135Z | work.criterion-satisfied | criterion=ollama-preflight actor=project:owner
+- 2026-08-27T12:26:37.250332Z | work.criterion-satisfied | criterion=ollama-runtime-fallback actor=project:owner
+- 2026-08-27T12:26:37.507932Z | work.criterion-satisfied | criterion=centered-wait-pill actor=project:owner
+- 2026-08-27T12:26:37.751545Z | work.criterion-satisfied | criterion=ollama-verification actor=project:owner
+- 2026-08-27T12:26:38.013715Z | work.transitioned | from=drafting to=clarified actor=project:owner
+- 2026-08-27T12:26:38.273823Z | work.transitioned | from=clarified to=planned actor=project:agent
+- 2026-08-27T12:26:38.544159Z | work.transitioned | from=planned to=implementing actor=project:agent
+- 2026-08-27T12:26:38.813543Z | work.transitioned | from=implementing to=verifying actor=project:agent
+- 2026-08-27T12:26:39.101162Z | approval.added | role=spec-owner actor=project:owner delegation=none
+- 2026-08-27T12:26:39.393008Z | work.transitioned | from=verifying to=completed actor=project:owner
