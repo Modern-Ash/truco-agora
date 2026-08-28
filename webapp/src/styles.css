@@ -786,13 +786,13 @@ button.spanish-card:disabled { cursor: default; filter: saturate(.84); }
   height: 92px;
 }
 .trick-card-stack--stacked {
-  width: 72px;
-  height: 112px;
+  width: 80px;
+  height: 118px;
 }
 .trick-card-stack__layer {
   position: absolute;
-  top: calc(var(--stack-index) * 10px);
-  left: calc(var(--stack-index) * 6px);
+  top: calc(var(--stack-index) * 13px);
+  left: calc(var(--stack-index) * 10px);
   z-index: var(--stack-index);
   display: block;
   width: 60px;
