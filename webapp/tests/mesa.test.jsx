@@ -1124,7 +1124,7 @@ test("la carta viaja desde la mano del jugador hasta su lugar en la baza", async
   }
 });
 
-test("la baza muestra solo la carta de la ronda vigente", () => {
+test("la baza conserva el historial de cartas con una pila compacta", () => {
   const st = estadoSpectator();
   st.others[0].played = [
     { palo: "oro", numero: 7 },
@@ -1135,7 +1135,21 @@ test("la baza muestra solo la carta de la ronda vigente", () => {
   render(<Table state={st} matchId="m1" seat={null} />);
 
   expect(screen.getByTestId("spectator-trick")).toHaveTextContent("2.ª");
-  expect(screen.getByTestId("played-card-Ana-0")).toHaveTextContent("1");
-  expect(screen.queryByTestId("played-card-Beto-0")).not.toBeInTheDocument();
-  expect(screen.getByTestId("played-placeholder-Beto-0")).toBeInTheDocument();
+  expect(screen.getByTestId("played-card-Ana-0")).toHaveTextContent("7");
+  expect(screen.getByTestId("played-card-Ana-1")).toHaveTextContent("1");
+  expect(screen.getByTestId("played-stack-Ana")).toHaveClass(
+    "trick-card-stack--stacked"
+  );
+  expect(screen.getByTestId("played-card-layer-Ana-0")).toHaveStyle({
+    "--stack-index": "0",
+    "--stack-size": "2",
+  });
+  expect(screen.getByTestId("played-card-layer-Ana-1")).toHaveStyle({
+    "--stack-index": "1",
+    "--stack-size": "2",
+  });
+  expect(screen.getByTestId("played-card-Beto-0")).toHaveTextContent("4");
+  expect(screen.getByTestId("played-stack-Beto")).toHaveClass(
+    "trick-card-stack--single"
+  );
 });
