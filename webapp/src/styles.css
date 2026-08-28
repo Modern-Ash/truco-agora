@@ -779,6 +779,29 @@ button.spanish-card:disabled { cursor: default; filter: saturate(.84); }
 .spectator-trick__grid { align-items: stretch; }
 .trick-seat { min-height: 132px; }
 .trick-placeholder { width: 60px; height: 92px; }
+.trick-card-stack {
+  position: relative;
+  flex: none;
+  width: 60px;
+  height: 92px;
+}
+.trick-card-stack--stacked {
+  width: 72px;
+  height: 112px;
+}
+.trick-card-stack__layer {
+  position: absolute;
+  top: calc(var(--stack-index) * 10px);
+  left: calc(var(--stack-index) * 6px);
+  z-index: var(--stack-index);
+  display: block;
+  width: 60px;
+  height: 92px;
+}
+.trick-card-stack__layer .spanish-card,
+.trick-card-stack__layer .spanish-card-back {
+  display: block;
+}
 .step-controls { min-height: 76px; }
 .step-controls--collapsed {
   width: fit-content;

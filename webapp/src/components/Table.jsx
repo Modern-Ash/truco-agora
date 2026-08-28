@@ -1141,14 +1141,11 @@ function SpectatorTrick({
     0,
     ...players.map((player) => (player.played || []).length)
   );
-  const currentCards = new Map(
-    players.map((player) => {
-      const played = player.played || [];
-      return [
-        player.name,
-        trickNumber > 0 && played.length === trickNumber ? [played.at(-1)] : [],
-      ];
-    })
+  // Keep the hand history visible: the newest card sits on top of a compact
+  // stack so players can still identify the previous plays without enlarging
+  // the table dramatically.
+  const playedCards = new Map(
+    players.map((player) => [player.name, player.played || []])
   );
 
   return (
@@ -1193,7 +1190,7 @@ function SpectatorTrick({
           <PlayedCardsSpot
             key={player.name}
             player={player}
-            cards={currentCards.get(player.name)}
+            cards={playedCards.get(player.name) || []}
             receiving={receivingPlayer === player.name}
           />
         ))}
@@ -1312,6 +1309,7 @@ function TableCallChat({ players, events, current }) {
 }
 
 function PlayedCardsSpot({ player, cards, receiving }) {
+  const isStacked = cards.length > 1;
   return (
     <div
       className="trick-seat flex min-w-0 flex-col items-center justify-center gap-2
@@ -1323,17 +1321,24 @@ function PlayedCardsSpot({ player, cards, receiving }) {
         {player.name}
       </span>
       <div
-        className="flex min-h-[68px] items-center justify-center gap-1.5"
+        className={`trick-card-stack ${isStacked ? "trick-card-stack--stacked" : "trick-card-stack--single"}`}
         aria-label={`Cartas jugadas por ${player.name}`}
+        data-testid={`played-stack-${player.name}`}
       >
         {cards.map((card, index) => (
-          <PlayedCard
+          <span
             key={`${card.palo || "tapada"}-${card.numero || index}-${index}`}
-            card={card}
-            playerName={player.name}
-            index={index}
-            receiving={receiving}
-          />
+            className="trick-card-stack__layer"
+            style={{ "--stack-index": index, "--stack-size": cards.length }}
+            data-testid={`played-card-layer-${player.name}-${index}`}
+          >
+            <PlayedCard
+              card={card}
+              playerName={player.name}
+              index={index}
+              receiving={receiving && index === cards.length - 1}
+            />
+          </span>
         ))}
         {cards.length === 0 && (
           <span
