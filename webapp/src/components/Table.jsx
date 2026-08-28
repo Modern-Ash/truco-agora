@@ -70,6 +70,8 @@ const FALLBACK_REASON_LABELS = {
   "provider-error": "El proveedor no pudo completar la decisión",
 };
 
+const CHAT_TONES = ["teal", "violet", "gold", "coral"];
+
 function llmIdentity(config) {
   if (!config?.provider) return null;
   const provider = PROVIDER_LABELS[config.provider] || config.provider;
@@ -927,28 +929,33 @@ function SpectatorArena({
               mano={mano}
               turn={turn}
               side="top"
-              tableEvents={tableEvents}
-              currentCall={activeCall}
             />
           )}
           <span className="spectator-table-head__balance" aria-hidden="true" />
         </div>
 
-        <SpectatorTrick
-          players={players}
-          receivingPlayer={cardFlight?.playerName || null}
-          waitStatus={
-            recovering
-              ? "Recuperando la mano…"
-              : stepping
-                ? stepSource === "autoplay"
-                  ? "Resolviendo jugada automática…"
-                  : "Resolviendo jugada manual…"
-                : stepMode && !pendingStep && !finished
-                  ? "Preparando jugada…"
-                  : null
-          }
-        />
+        <div className="spectator-middle" data-testid="spectator-middle">
+          <SpectatorTrick
+            players={players}
+            receivingPlayer={cardFlight?.playerName || null}
+            waitStatus={
+              recovering
+                ? "Recuperando la mano…"
+                : stepping
+                  ? stepSource === "autoplay"
+                    ? "Resolviendo jugada automática…"
+                    : "Resolviendo jugada manual…"
+                  : stepMode && !pendingStep && !finished
+                    ? "Preparando jugada…"
+                    : null
+            }
+          />
+          <TableCallChat
+            players={players}
+            events={tableEvents}
+            current={activeCall}
+          />
+        </div>
 
         {teams[1] && (
           <SpectatorTeam
@@ -956,8 +963,6 @@ function SpectatorArena({
             mano={mano}
             turn={turn}
             side="bottom"
-            tableEvents={tableEvents}
-            currentCall={activeCall}
           />
         )}
       </div>
@@ -1197,22 +1202,27 @@ function SpectatorTrick({
   );
 }
 
-function PlayerCallChat({ player, events, current, side }) {
+function TableCallChat({ players, events, current }) {
   const logRef = useRef(null);
   const messages = (events || []).filter(
-    (event) => (event.type === "call" || event.type === "call_response")
-      && event.player === player.name
+    (event) => event.type === "call" || event.type === "call_response"
   );
-  if (messages.length === 0 && current?.player === player.name) {
+  if (messages.length === 0 && current?.player) {
     messages.push({
-          id: "legacy-current-call",
-          type: "call",
-          player: current.player,
-          call: current.call,
-        });
+      id: "legacy-current-call",
+      type: "call",
+      player: current.player,
+      call: current.call,
+    });
   }
   const lastMessageId = messages.at(-1)?.id;
-  const isResponding = current?.live && current.responder === player.name;
+  const respondingPlayer = current?.live ? current.responder : null;
+  const participantMeta = new Map(
+    players.map((player, index) => [player.name, {
+      side: index % 2 === 0 ? "left" : "right",
+      tone: CHAT_TONES[index % CHAT_TONES.length],
+    }])
+  );
 
   useEffect(() => {
     const log = logRef.current;
@@ -1221,18 +1231,21 @@ function PlayerCallChat({ player, events, current, side }) {
 
   return (
     <section
-      className={`spectator-player-panel player-call-chat player-call-chat--${side}`}
-      data-testid={`player-call-chat-${player.name}`}
-      aria-label={`Historial de cantos de ${player.name}`}
+      className="table-call-chat"
+      data-testid="table-call-chat"
+      aria-label="Conversación de cantos de la mesa"
     >
-      <header className="player-call-chat__header">
-        <span>Voz de {player.name}</span>
-        <strong>{isResponding ? "Respondiendo…" : `${messages.length} mensaje${messages.length === 1 ? "" : "s"}`}</strong>
+      <header className="table-call-chat__header">
+        <div>
+          <span>Conversación</span>
+          <strong>Mesa en vivo</strong>
+        </div>
+        <small>{messages.length} mensaje{messages.length === 1 ? "" : "s"}</small>
       </header>
       {messages.length > 0 ? (
         <div
-          className="player-call-chat__log"
-          data-testid={`call-announcement-${player.name}`}
+          className="table-call-chat__log"
+          data-testid="call-announcement-table"
           role="log"
           aria-live="polite"
           aria-relevant="additions"
@@ -1240,18 +1253,28 @@ function PlayerCallChat({ player, events, current, side }) {
         >
           {messages.map((event) => {
             const isResponse = event.type === "call_response";
+            const meta = participantMeta.get(event.player) || {
+              side: "left",
+              tone: "teal",
+            };
             return (
               <article
                 key={event.id}
-                className="player-call-chat__bubble"
+                className={
+                  `table-call-chat__bubble table-call-chat__bubble--${meta.side} ` +
+                  `table-call-chat__bubble--${meta.tone}`
+                }
                 data-testid={`call-chat-message-${event.id}`}
               >
-                <span>#{event.id}</span>
-                <strong>
+                <header>
+                  <strong>{event.player}</strong>
+                  <span>#{event.id}</span>
+                </header>
+                <p>
                   {isResponse
                     ? CALL_RESPONSE_LABELS[event.response] || event.response
                     : `¡${CALL_LABELS[event.call] || event.call}!`}
-                </strong>
+                </p>
                 <small>
                   {isResponse
                     ? `respondió a ${CALL_LABELS[event.call] || event.call}`
@@ -1260,20 +1283,28 @@ function PlayerCallChat({ player, events, current, side }) {
               </article>
             );
           })}
-          {isResponding && (
-            <p className="player-call-chat__typing" data-testid={`call-typing-${player.name}`}>
-              <Spinner /> pensando respuesta…
+          {respondingPlayer && (
+            <p
+              className={
+                "table-call-chat__typing " +
+                `table-call-chat__typing--${participantMeta.get(respondingPlayer)?.side || "left"}`
+              }
+              data-testid={`call-typing-${respondingPlayer}`}
+            >
+              <Spinner /> {respondingPlayer} está pensando…
             </p>
           )}
         </div>
       ) : (
         <p
-          className="player-call-chat__empty"
-          data-testid={isResponding
-            ? `call-typing-${player.name}`
-            : `no-call-status-${player.name}`}
+          className="table-call-chat__empty"
+          data-testid={respondingPlayer
+            ? `call-typing-${respondingPlayer}`
+            : "no-call-status-table"}
         >
-          {isResponding ? <><Spinner /> pensando respuesta…</> : "Todavía no cantó"}
+          {respondingPlayer
+            ? <><Spinner /> {respondingPlayer} está pensando…</>
+            : "Todavía no hubo cantos"}
         </p>
       )}
     </section>
@@ -1338,15 +1369,19 @@ function PlayedCard({ card, playerName, index, receiving }) {
   );
 }
 
-function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
+function SpectatorTeam({ team, mano, turn, side }) {
   const displayName = teamDisplayName(team);
   return (
     <div
       className="spectator-team relative z-20 min-w-0"
       data-testid={`spectator-team-${team.name}`}
     >
-      <p className="mb-1 text-center text-[0.58rem] font-bold uppercase
-                    tracking-[0.22em] text-crema/45">
+      <p
+        className="spectator-team-label mb-1 truncate text-center text-[0.58rem] font-bold uppercase
+                   tracking-[0.22em] text-crema/45"
+        data-testid={`spectator-team-label-${team.name}`}
+        title={team.players.length === 1 ? `Jugador · ${displayName}` : displayName}
+      >
         {team.players.length === 1 ? `Jugador · ${displayName}` : displayName}
       </p>
       <div
@@ -1370,8 +1405,12 @@ function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
                   : "border-crema/10")
               }
             >
-            <header className="mb-2 flex flex-wrap items-center justify-center gap-1.5">
-              <h3 className="font-serif-display text-sm font-bold text-crema sm:text-base">
+            <header className="spectator-player-header flex min-w-0 flex-nowrap items-center justify-center gap-1.5">
+              <h3
+                className="spectator-player-name min-w-0 flex-1 truncate font-serif-display text-sm font-bold text-crema sm:text-base"
+                data-testid={`spectator-player-name-${player.name}`}
+                title={player.name}
+              >
                 {player.name}
               </h3>
               {mano === player.name && (
@@ -1388,7 +1427,9 @@ function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
                 </span>
               )}
             </header>
-            <AgentIdentity player={player} className="mb-2 text-center" />
+            <div className="spectator-player-agent">
+              <AgentIdentity player={player} className="text-center" />
+            </div>
             <div
               className="spectator-hand flex items-center justify-center gap-1.5 sm:gap-2"
               data-testid={`spectator-hand-${player.name}`}
@@ -1416,12 +1457,6 @@ function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
               )}
             </div>
             </article>
-            <PlayerCallChat
-              player={player}
-              events={tableEvents}
-              current={currentCall}
-              side={side}
-            />
           </div>
         ))}
       </div>
@@ -1445,10 +1480,10 @@ function AgentIdentity({ player, className = "" }) {
   const bluffLevel = player.agent.bluff_level;
   const bluffLabel = BLUFF_LABELS[bluffLevel] || bluffLevel;
   return (
-    <div className={`agent-meta mx-auto flex max-w-full flex-wrap items-center
-                    justify-center gap-1.5 ${className}`}>
+    <div className={`agent-meta mx-auto flex min-w-0 max-w-full flex-nowrap items-center
+                    justify-center gap-1.5 overflow-hidden ${className}`}>
       <p
-        className="agent-identity max-w-full truncate rounded-full border border-teal/30
+        className="agent-identity min-w-0 max-w-full flex-[1_1_auto] truncate rounded-full border border-teal/30
                    bg-teal/10 px-2 py-1 text-[0.66rem] font-bold tracking-[0.035em]
                    text-teal/90"
         data-testid={`agent-identity-${player.name}`}
@@ -1477,15 +1512,18 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
     <div
       className={
         `slot ${side} ${isTurn ? "turno" : ""} ${isMano ? "slot--mano" : ""} ` +
-        `glass-panel min-w-[120px] rounded-xl ` +
+        `player-slot-panel glass-panel min-w-0 max-w-full overflow-hidden rounded-xl ` +
         `px-3 py-2 outline outline-2 outline-transparent ` +
         `transition-shadow duration-200 ${sideClass} ` +
         (isTurn ? "shadow-[0_0_14px_rgba(46,230,196,0.4)] outline-teal!" : "")
       }
       data-testid={dataTestid}
     >
-      <div className="nombre-jugador text-[0.95rem] text-crema">
-        {player.name}
+      <div
+        className="nombre-jugador flex min-w-0 items-center gap-1.5 text-[0.95rem] text-crema"
+        title={player.name}
+      >
+        <span className="min-w-0 flex-1 truncate font-semibold">{player.name}</span>
         {isMano && <span className="chip inline-block ml-1.5 rounded-full bg-oro/20 border border-oro/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-oro">MANO</span>}
         {isTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-teal/20 border border-teal/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-teal animate-pulso">JUGANDO</span>}
       </div>
