@@ -174,7 +174,9 @@ export default function Table({ state: propState, matchId, seat }) {
   const [historialAbierto, setHistorialAbierto] = useState(false);
   const prevRef = useRef(null);
   const stepModeSeenRef = useRef(Boolean(propState?.step_mode || propState?.pending_step));
-  const dealtManoRef = useRef(null);
+  const dealtHandRef = useRef(null);
+  const dealTimerRef = useRef(null);
+  const finishDealTimerRef = useRef(null);
   const steppingRef = useRef(false);
 
   useEffect(() => {
@@ -182,20 +184,44 @@ export default function Table({ state: propState, matchId, seat }) {
   }, [propState]);
 
   useEffect(() => {
-    if (state.finished || !state.mano) {
-      setDealPhase(null);
-      return undefined;
-    }
-    if (dealtManoRef.current === state.mano) return undefined;
-    dealtManoRef.current = state.mano;
-    setDealPhase("shuffle");
-    const dealTimer = setTimeout(() => setDealPhase("deal"), 480);
-    const finishTimer = setTimeout(() => setDealPhase(null), 1250);
-    return () => {
-      clearTimeout(dealTimer);
-      clearTimeout(finishTimer);
+    const clearDealTimers = () => {
+      clearTimeout(dealTimerRef.current);
+      clearTimeout(finishDealTimerRef.current);
+      dealTimerRef.current = null;
+      finishDealTimerRef.current = null;
     };
-  }, [state.finished, state.mano]);
+
+    if (state.finished || !state.mano) {
+      clearDealTimers();
+      setDealPhase(null);
+      return;
+    }
+
+    const players = [
+      ...(state.you ? [state.you] : []),
+      ...(state.others || []),
+    ];
+    const playedCount = players.reduce(
+      (total, player) => total + (player.played || []).length,
+      0
+    );
+    const previousHand = dealtHandRef.current;
+    const newHand = !previousHand
+      || previousHand.mano !== state.mano
+      || playedCount < previousHand.playedCount;
+    dealtHandRef.current = { mano: state.mano, playedCount };
+    if (!newHand) return;
+
+    clearDealTimers();
+    setDealPhase("shuffle");
+    dealTimerRef.current = setTimeout(() => setDealPhase("deal"), 480);
+    finishDealTimerRef.current = setTimeout(() => setDealPhase(null), 1250);
+  }, [state.finished, state.mano, state.you, state.others]);
+
+  useEffect(() => () => {
+    clearTimeout(dealTimerRef.current);
+    clearTimeout(finishDealTimerRef.current);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(TABLE_SOUND_KEY, soundEnabled ? "1" : "0");
