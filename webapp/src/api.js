@@ -42,8 +42,11 @@ export function getState(matchId, player, spectator = false) {
   return req(`/matches/${matchId}/state${q}`);
 }
 
-export function postStep(matchId) {
-  return req(`/matches/${matchId}/step`, { method: "POST" });
+export function postStep(matchId, source = "manual") {
+  return req(`/matches/${matchId}/step`, {
+    method: "POST",
+    body: JSON.stringify({ source }),
+  });
 }
 
 export function postAction(matchId, action) {

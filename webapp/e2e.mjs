@@ -152,7 +152,10 @@ try {
     const beforePlayed = cardPlayer
       ? llmState.others.find((player) => player.name === cardPlayer).played.length
       : 0;
-    llmState = await api(`/matches/${llmCreated.match_id}/step`, { method: "POST" });
+    llmState = await api(`/matches/${llmCreated.match_id}/step`, {
+      method: "POST",
+      body: JSON.stringify({ source: "autoplay" }),
+    });
     if (llmState.step_generation <= beforeGeneration)
       fail("la generación no avanzó al liberar la siguiente movida");
     if (!llmState.others.every((player) => Array.isArray(player.hand)))
@@ -169,7 +172,10 @@ try {
   }
   if (!sawPlayedCard)
     fail("ninguna carta jugada apareció en el snapshot de autoplay");
+  if (!llmState.last_agent_decision?.source)
+    fail("el snapshot no publicó la procedencia de la decisión del agente");
   console.log("✓ LLM vs LLM: manos, autoplay y carta jugada visible verificados");
+  console.log(`✓ procedencia de decisión visible: ${llmState.last_agent_decision.source}`);
 
   // Un canto es un evento durable: aunque el polling no alcance el instante
   // de `call_vigente`, la mesa debe poder reconstruir quién cantó y qué.

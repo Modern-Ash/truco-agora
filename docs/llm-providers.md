@@ -34,10 +34,21 @@ dependencia de Python, para no acoplar el proyecto a una librería por backend.
 Cada adaptador:
 1. Arma un prompt que incluye el `prompt` de contexto + las `options`
    válidas, pidiendo *exactamente una línea con una de las opciones*.
-2. Parsea la respuesta: si no matchea ninguna opción válida, reintenta una
-   vez con un prompt más estricto; si vuelve a fallar, **cae a la primera
-   opción** (fail-safe determinista, nunca bloquea la partida) y lo loguea.
-3. Tiene un `timeout` configurable (default 30s); si expira, mismo fallback.
+2. Normaliza ANSI, bloques `<think>`, JSON y texto acotado. Las opciones se
+   comparan por límites completos, por lo que `quiero` no captura por error
+   una respuesta `no_quiero`.
+3. Si no hay una coincidencia inequívoca, reintenta una vez pidiendo
+   `{"choice":"OPCION"}`. Si vuelve a fallar, elige una opción legal mediante
+   un hash estable del contexto y del conjunto ordenado de opciones. El
+   fallback es reproducible pero no privilegia la primera posición.
+4. Publica la procedencia de la elección como `model`, `repaired` o
+   `fallback`, junto con la cantidad de intentos y un motivo seguro cuando
+   corresponde. Esa metadata aparece en el snapshot de espectador como
+   `last_agent_decision` y el fallback se identifica en la mesa. El motivo se
+   reduce a una categoría pública (`provider-timeout`, `invalid-response`,
+   etc.); nunca se expone el error crudo del proceso o servicio.
+5. Tiene un `timeout` configurable (default 30s); si expira, aplica el mismo
+   fallback legal sin bloquear la partida.
 
 ## Selección de proveedor
 `--llm-provider {claude,codex,opencode,ollama,mock}` en la CLI (`truco/cli.py`)

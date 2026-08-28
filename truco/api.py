@@ -13,7 +13,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Dict, List, Optional, Tuple, Union
+from typing import Deque, Dict, List, Literal, Optional, Tuple, Union
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel
@@ -245,6 +245,9 @@ class MatchSession:
         self._table_event_generation = 0
         self._table_event_lock = threading.Lock()
         self._table_events: Deque[dict] = deque(maxlen=24)
+        self._last_agent_decision: Optional[dict] = None
+        self._snapshot_log_lock = threading.Lock()
+        self._snapshot_log_signatures: Dict[str, tuple] = {}
         self.thread = threading.Thread(
             target=self._run,
             daemon=True,
@@ -296,7 +299,10 @@ class MatchSession:
         """
         with self._table_event_lock:
             self._table_event_generation += 1
-            self._table_events.append({"id": self._table_event_generation, **event})
+            recorded = {"id": self._table_event_generation, **event}
+            self._table_events.append(recorded)
+            if event.get("type") == "agent_decision":
+                self._last_agent_decision = dict(recorded)
             event_id = self._table_event_generation
         self.record_progress(
             "table.event",
@@ -310,6 +316,21 @@ class MatchSession:
     def snapshot_table_events(self) -> List[dict]:
         with self._table_event_lock:
             return [dict(event) for event in self._table_events]
+
+    def snapshot_last_agent_decision(self) -> Optional[dict]:
+        with self._table_event_lock:
+            return (
+                dict(self._last_agent_decision)
+                if self._last_agent_decision is not None else None
+            )
+
+    def should_log_snapshot(self, viewer: str, signature: tuple) -> bool:
+        """Evita repetir el mismo snapshot en cada poll del navegador."""
+        with self._snapshot_log_lock:
+            if self._snapshot_log_signatures.get(viewer) == signature:
+                return False
+            self._snapshot_log_signatures[viewer] = signature
+            return True
 
     def diagnostics(self) -> dict:
         now = time.monotonic()
@@ -477,6 +498,10 @@ class ActionRequest(BaseModel):
     tapada: bool = False             # jugar la carta boca abajo (reglas-v2.md)
 
 
+class StepRequest(BaseModel):
+    source: Literal["manual", "autoplay"] = "manual"
+
+
 class SenaRequest(BaseModel):
     de: str
     para: str
@@ -568,6 +593,7 @@ def _snapshot(session: MatchSession,
         "turn": turn,
         "call_vigente": call_vigente,
         "table_events": session.snapshot_table_events(),
+        "last_agent_decision": session.snapshot_last_agent_decision(),
         "others": [],
     }
 
@@ -608,20 +634,27 @@ def _snapshot(session: MatchSession,
     if you is None:
         data["you"] = None
     own_pending = data.get("you", {}).get("pending") if data.get("you") else None
-    log_event(
-        logger,
-        "state.snapshot",
-        severity=logging.DEBUG,
-        match_id=session.id,
-        viewer=player_name or "spectator",
-        spectator=reveal_agent_hands,
-        finished=data["finished"],
-        turn=turn,
-        call=call_vigente,
-        pending_kind=own_pending.get("decision") if own_pending else None,
-        step_generation=data["step_generation"],
-        table_event_count=len(data["table_events"]),
+    viewer = f"{player_name or 'spectator'}:{int(reveal_agent_hands)}"
+    signature = (
+        data["finished"], turn, call_vigente,
+        own_pending.get("decision") if own_pending else None,
+        data["step_generation"], len(data["table_events"]),
     )
+    if session.should_log_snapshot(viewer, signature):
+        log_event(
+            logger,
+            "state.snapshot.changed",
+            severity=logging.DEBUG,
+            match_id=session.id,
+            viewer=player_name or "spectator",
+            spectator=reveal_agent_hands,
+            finished=data["finished"],
+            turn=turn,
+            call=call_vigente,
+            pending_kind=own_pending.get("decision") if own_pending else None,
+            step_generation=data["step_generation"],
+            table_event_count=len(data["table_events"]),
+        )
     return data
 
 
@@ -730,13 +763,19 @@ app = FastAPI(title="Truco Argentino API", version="0.1.0")
 async def trace_http_request(request: Request, call_next):
     request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:10]
     started = time.monotonic()
-    log_event(
-        logger,
-        "http.request.start",
-        request_id=request_id,
-        method=request.method,
-        path=request.url.path,
+    state_poll = (
+        request.method == "GET"
+        and request.url.path.startswith("/matches/")
+        and request.url.path.endswith("/state")
     )
+    if not state_poll:
+        log_event(
+            logger,
+            "http.request.start",
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+        )
     try:
         response = await call_next(request)
     except Exception as exc:
@@ -752,15 +791,18 @@ async def trace_http_request(request: Request, call_next):
         )
         raise
     response.headers["X-Request-ID"] = request_id
-    log_event(
-        logger,
-        "http.request.end",
-        request_id=request_id,
-        method=request.method,
-        path=request.url.path,
-        status=response.status_code,
-        duration_ms=round((time.monotonic() - started) * 1000, 1),
-    )
+    duration_ms = round((time.monotonic() - started) * 1000, 1)
+    if not state_poll or response.status_code >= 400 or duration_ms >= 250:
+        log_event(
+            logger,
+            "http.state.poll" if state_poll else "http.request.end",
+            severity=logging.WARNING if response.status_code >= 400 else logging.INFO,
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            duration_ms=duration_ms,
+        )
     return response
 
 
@@ -1128,7 +1170,7 @@ def _wait_for_step_resolution(session: MatchSession, before_generation: int,
 
 
 @app.post("/matches/{match_id}/step")
-def post_step(match_id: str):
+def post_step(match_id: str, req: Optional[StepRequest] = None):
     session = get_session(match_id)
     if session.step_gate is None:
         raise HTTPException(status_code=422,
@@ -1138,8 +1180,10 @@ def post_step(match_id: str):
                             detail="No hay ninguna movida pendiente ahora mismo")
     before_generation = session.step_generation()
     pending = session.snapshot_pending_step()
+    source = req.source if req is not None else "manual"
     session.record_progress(
         "step.requested",
+        source=source,
         generation=before_generation,
         player=pending.get("player") if pending else None,
         kind=pending.get("kind") if pending else None,
@@ -1148,6 +1192,7 @@ def post_step(match_id: str):
     resolved = _wait_for_step_resolution(session, before_generation)
     session.record_progress(
         "step.request.completed" if resolved else "step.request.timeout",
+        source=source,
         generation=session.step_generation(),
     )
     return _snapshot(session, None, reveal_agent_hands=True)
@@ -1189,4 +1234,4 @@ def post_sena(match_id: str, req: SenaRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000, access_log=False)

@@ -149,8 +149,9 @@ ollama pull llama3
 
 La UI consulta `GET /llm/models?provider=...` y muestra modelos descubiertos en
 el entorno. Si un proveedor falla, excede el timeout o devuelve una opción
-inválida, el adaptador registra el motivo y aplica un fallback determinista para
-no bloquear la partida.
+inválida, el adaptador intenta normalizar la respuesta una vez y luego aplica
+un fallback legal, reproducible y no sesgado por el orden. La mesa distingue
+si la decisión vino del modelo, fue reparada o requirió fallback.
 
 La CLI acepta valores globales por argumento o entorno:
 
@@ -293,6 +294,10 @@ El contrato completo y los códigos de error están en
 La API emite eventos estructurados para requests, sesiones, manos, fases,
 decisiones, proveedores, fallbacks y recuperación. No registra prompts,
 credenciales, cuerpos HTTP ni cartas privadas.
+
+Los polls exitosos de `/state` se deduplican y el access log redundante de
+Uvicorn está desactivado en desarrollo. Los cambios de snapshot, requests
+lentos y errores siguen quedando registrados con `X-Request-ID`.
 
 | Variable | Default | Descripción |
 |---|---|---|

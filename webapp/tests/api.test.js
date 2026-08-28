@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { createMatch, getLLMModels, getState } from "../src/api.js";
+import { createMatch, getLLMModels, getState, postStep } from "../src/api.js";
 
 describe("createMatch", () => {
   afterEach(() => {
@@ -59,6 +59,24 @@ describe("createMatch", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "/llm/models?provider=codex",
       expect.any(Object)
+    );
+  });
+
+  test("identifica si un step fue manual o automático", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ step_generation: 2 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await postStep("partida-1", "autoplay");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/matches/partida-1/step",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ source: "autoplay" }),
+      })
     );
   });
 });

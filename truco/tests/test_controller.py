@@ -10,6 +10,11 @@ class UnavailableClient:
         raise RuntimeError("proveedor temporalmente inaccesible")
 
 
+class InvalidChoiceClient:
+    def decide(self, prompt, options):
+        return "inventar_regla"
+
+
 def visible_state():
     return VisibleState(
         hand_cards=[Card("oro", 4), Card("copa", 7)],
@@ -135,10 +140,22 @@ def test_llm_controller_provider_unavailable_keeps_match_playable(caplog):
     controller = LLMController("Agente", UnavailableClient())
     state = visible_state()
 
-    assert controller.choose_action(state, ["truco"]) == "jugar"
-    assert controller.choose_card(state) == Card("oro", 4)
-    assert controller.choose_call_response(state, "truco") == "quiero"
+    assert controller.choose_action(state, ["truco"]) in {"jugar", "truco", "irse_al_mazo"}
+    assert controller.choose_card(state) in state.hand_cards
+    assert controller.choose_call_response(state, "truco") in {
+        "quiero", "no_quiero", "retruco",
+    }
+    assert controller.last_decision["source"] == "fallback"
     assert "proveedor no disponible" in caplog.text
+
+
+def test_llm_controller_rechaza_opcion_fuera_del_conjunto_legal():
+    controller = LLMController("Agente", InvalidChoiceClient())
+
+    choice = controller.choose_action(visible_state(), ["truco"])
+
+    assert choice in {"jugar", "truco", "irse_al_mazo"}
+    assert controller.last_decision["source"] == "fallback"
 
 
 def test_match_completa_con_proveedores_caidos_sin_interrumpirse():

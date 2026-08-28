@@ -177,6 +177,19 @@ def test_step_expone_pending_step_y_avanza_con_step(client):
     assert r.json()["finished"] in (True, False)
 
 
+def test_step_acepta_y_registra_origen_autoplay(client, caplog):
+    match_id = _crear_step_match(client)
+    _wait_pending_step(client, match_id)
+
+    r = client.post(
+        f"/matches/{match_id}/step", json={"source": "autoplay"}
+    )
+
+    assert r.status_code == 200
+    assert "event=step.requested" in caplog.text
+    assert "source=autoplay" in caplog.text
+
+
 def test_step_de_carta_devuelve_la_carta_ya_aplicada(client):
     """El POST no debe responder durante el hueco pending=None anterior a
     que el motor agregue la carta a ``played``."""

@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "node e2e.mjs",
-    "dev:api": "cd .. && TRUCO_LOG_LEVEL=DEBUG TRUCO_LOG_FILE=./logs/truco-backend-debug.log .venv/bin/python -m uvicorn truco.api:app --reload"
+    "dev:api": "cd .. && TRUCO_LOG_LEVEL=DEBUG TRUCO_LOG_FILE=./logs/truco-backend-debug.log .venv/bin/python -m uvicorn truco.api:app --reload --no-access-log"
   },
   "dependencies": {
     "react": "^19.2.8",
