@@ -493,6 +493,35 @@ test("grafica las fases de mezcla y reparto dentro del paño", async () => {
   }
 });
 
+test("vuelve a mezclar y repartir cuando comienza otra mano", async () => {
+  vi.useFakeTimers();
+  try {
+    const firstHand = estadoSpectator();
+    firstHand.others[0].played = [{ palo: "oro", numero: 7 }];
+    firstHand.others[1].played = [{ palo: "copa", numero: 4 }];
+    const nextHand = estadoSpectator({ mano: "Ana", step_generation: 4 });
+    const { rerender } = render(
+      <Table state={firstHand} matchId="m1" seat={null} />
+    );
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1250); });
+    expect(screen.queryByTestId("deal-sequence")).not.toBeInTheDocument();
+
+    rerender(<Table state={nextHand} matchId="m1" seat={null} />);
+    await act(async () => {});
+
+    expect(screen.getByTestId("deal-sequence")).toHaveTextContent(
+      "Mezclando el mazo"
+    );
+    await act(async () => { await vi.advanceTimersByTimeAsync(480); });
+    expect(screen.getByTestId("deal-sequence")).toHaveTextContent(
+      "Repartiendo cartas"
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("permite activar el sonido accesible de mezcla y reparto", async () => {
   const user = userEvent.setup();
   localStorage.removeItem("truco:table-sound");
