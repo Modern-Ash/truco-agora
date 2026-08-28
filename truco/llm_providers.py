@@ -6,13 +6,14 @@ correspondiente, o hablando HTTP local para Ollama. Ninguno agrega un SDK
 de proveedor como dependencia de Python.
 
 Principio de diseño: el LLM nunca decide reglas, solo elige una opción de
-una lista ya acotada por el motor. Si la respuesta no matchea ninguna
-opción válida (parseo fallido) o el proceso no responde a tiempo, cada
-adaptador cae de forma determinista a la primera opción — nunca bloquea
-ni corrompe la partida.
+una lista ya acotada por el motor. Una respuesta ambigua se reintenta una
+vez con un formato estricto. Si el proveedor sigue sin responder de forma
+válida, se usa una opción legal reproducible que no depende de la posición
+de la lista; la procedencia de la decisión queda disponible para auditoría.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -32,22 +33,68 @@ MODEL_DISCOVERY_TIMEOUT_SECONDS = 8.0
 
 CLAUDE_MODEL_ALIASES = ["sonnet", "opus", "haiku", "fable"]
 _ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+_JSON_DECISION_KEYS = ("choice", "option", "decision", "answer", "response")
 
 
 class ProviderUnavailableError(RuntimeError):
     """El binario/servicio del proveedor no está disponible en este entorno."""
 
 
-def _fallback(options: List[str], reason: str) -> str:
-    logger.warning("LLM provider fallback (%s); usando primera opción", reason)
+def deterministic_fallback(prompt: str, options: List[str]) -> str:
+    """Elige una opción reproducible sin privilegiar el orden recibido."""
+    if not options:
+        raise ValueError("No hay opciones para decidir")
+    canonical = sorted(options)
+    material = (prompt + "\0" + "\0".join(canonical)).encode("utf-8")
+    index = int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+    return canonical[index % len(canonical)]
+
+
+def _record_decision(client, *, source: str, choice: str,
+                     attempts: int, reason: Optional[str] = None) -> None:
+    client.last_decision = {
+        "source": source,
+        "choice": choice,
+        "attempts": attempts,
+        "reason": reason,
+    }
+
+
+def _public_reason(reason: str) -> str:
+    """Reduce errores externos a categorías seguras para snapshots públicos."""
+    lowered = reason.casefold()
+    if "timeout" in lowered:
+        return "provider-timeout"
+    if "no está instalado" in lowered or "no se pudo usar" in lowered:
+        return "provider-unavailable"
+    if "código" in lowered:
+        return "provider-exit"
+    if "reparación" in lowered:
+        return "repair-failed"
+    if "parseable" in lowered:
+        return "invalid-response"
+    return "provider-error"
+
+
+def _fallback(client, prompt: str, options: List[str], reason: str,
+              attempts: int = 1) -> str:
+    choice = deterministic_fallback(prompt, options)
+    logger.warning("LLM provider fallback (%s); usando opción legal estable", reason)
+    _record_decision(
+        client, source="fallback", choice=choice, attempts=attempts,
+        reason=_public_reason(reason),
+    )
     log_event(
         logger,
         "provider.fallback",
         severity=logging.WARNING,
         reason=reason,
-        choice=options[0],
+        choice=choice,
+        strategy="stable-hash",
+        attempts=attempts,
     )
-    return options[0]
+    return choice
 
 
 def _build_decision_prompt(prompt: str, options: List[str]) -> str:
@@ -59,15 +106,48 @@ def _build_decision_prompt(prompt: str, options: List[str]) -> str:
     )
 
 
+def _build_repair_prompt(raw: str, options: List[str]) -> str:
+    # No incluye el prompt original nuevamente: reduce latencia y evita que el
+    # CLI repita contexto cuando sólo necesitamos normalizar su salida.
+    bounded_raw = _ANSI_ESCAPE.sub("", raw).strip()[-1200:]
+    return (
+        "Tu respuesta anterior no coincidió inequívocamente con una opción.\n"
+        f"Respuesta anterior: {bounded_raw}\n"
+        "Devolvé sólo JSON válido con esta forma: "
+        '{"choice":"OPCION"}. '
+        f"OPCION debe ser exactamente una de: {', '.join(options)}"
+    )
+
+
 def _match_option(raw: str, options: List[str]) -> Optional[str]:
-    cleaned = raw.strip().strip('"').strip("'").lower()
-    for opt in options:
-        if opt.lower() == cleaned:
-            return opt
-    # Segunda pasada: la respuesta puede traer texto alrededor de la opción.
-    for opt in options:
-        if opt.lower() in cleaned:
-            return opt
+    cleaned = _THINK_BLOCK.sub(" ", _ANSI_ESCAPE.sub("", raw)).strip()
+    candidates = [cleaned]
+    for fragment in re.findall(r"\{[^{}]*\}", cleaned, flags=re.DOTALL):
+        try:
+            payload = json.loads(fragment)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(payload, dict):
+            candidates.extend(
+                str(payload[key]) for key in _JSON_DECISION_KEYS
+                if key in payload and payload[key] is not None
+            )
+
+    normalized = {opt.casefold(): opt for opt in options}
+    for candidate in candidates:
+        exact = candidate.strip().strip('"').strip("'").casefold()
+        if exact in normalized:
+            return normalized[exact]
+
+    # Opciones largas primero evita que `quiero` capture `no_quiero`.
+    matches = []
+    lowered = cleaned.casefold()
+    for opt in sorted(options, key=len, reverse=True):
+        pattern = rf"(?<![\w]){re.escape(opt.casefold())}(?![\w])"
+        if re.search(pattern, lowered):
+            matches.append(opt)
+    if len(matches) == 1:
+        return matches[0]
     return None
 
 
@@ -81,6 +161,7 @@ class _CLISubprocessClient:
                  timeout: float = DEFAULT_TIMEOUT_SECONDS):
         self.model = model
         self.timeout = timeout
+        self.last_decision: Optional[dict] = None
 
     def _command(self, prompt: str) -> List[str]:
         raise NotImplementedError
@@ -99,39 +180,74 @@ class _CLISubprocessClient:
             option_count=len(options),
         )
         try:
-            result = subprocess.run(
-                self._command(full_prompt),
-                capture_output=True,
-                text=True,
-                timeout=self.timeout,
-                check=False,
-            )
+            result = self._run_decision(full_prompt)
         except FileNotFoundError:
             return _fallback(
-                options, f"{self.binary} no está instalado o no está en PATH"
+                self, prompt, options,
+                f"{self.binary} no está instalado o no está en PATH",
             )
         except subprocess.TimeoutExpired:
-            return _fallback(options, f"{self.binary} timeout tras {self.timeout}s")
+            return _fallback(
+                self, prompt, options, f"{self.binary} timeout tras {self.timeout}s"
+            )
+        except OSError as exc:
+            return _fallback(
+                self, prompt, options,
+                f"{self.binary} no se pudo ejecutar: {type(exc).__name__}",
+            )
 
         if result.returncode != 0:
             return _fallback(
-                options, f"{self.binary} salió con código {result.returncode}"
+                self, prompt, options,
+                f"{self.binary} salió con código {result.returncode}",
             )
 
         matched = _match_option(result.stdout, options)
         if matched is None:
-            # La salida puede repetir parte del prompt. No se incorpora al log.
-            return _fallback(options, f"{self.binary} respuesta no parseable")
+            try:
+                repair = self._run_decision(_build_repair_prompt(result.stdout, options))
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return _fallback(
+                    self, prompt, options,
+                    f"{self.binary} reparación fallida: {type(exc).__name__}",
+                    attempts=2,
+                )
+            matched = _match_option(repair.stdout, options) if repair.returncode == 0 else None
+            if matched is None:
+                return _fallback(
+                    self, prompt, options,
+                    f"{self.binary} respuesta no parseable tras reparación",
+                    attempts=2,
+                )
+            source = "repaired"
+            attempts = 2
+        else:
+            source = "model"
+            attempts = 1
+        _record_decision(
+            self, source=source, choice=matched, attempts=attempts
+        )
         log_event(
             logger,
             "provider.cli.end",
             provider=self.binary,
             model=self.model or "default",
             choice=matched,
+            source=source,
+            attempts=attempts,
             returncode=result.returncode,
             duration_ms=round((time.monotonic() - started) * 1000, 1),
         )
         return matched
+
+    def _run_decision(self, prompt: str) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            self._command(prompt),
+            capture_output=True,
+            text=True,
+            timeout=self.timeout,
+            check=False,
+        )
 
     def generate(self, prompt: str) -> str:
         """Texto libre, sin acotar a un conjunto de opciones (usado por
@@ -225,6 +341,7 @@ class OllamaClient:
         self.model = model
         self.host = host.rstrip("/")
         self.timeout = timeout
+        self.last_decision: Optional[dict] = None
 
     def decide(self, prompt: str, options: List[str]) -> str:
         if not options:
@@ -240,9 +357,66 @@ class OllamaClient:
             timeout=self.timeout,
             option_count=len(options),
         )
+        try:
+            body = self._request_decision(full_prompt)
+        except urllib.error.URLError as exc:
+            return _fallback(
+                self, prompt, options,
+                f"No se pudo usar Ollama en {self.host}: {exc}",
+            )
+        except TimeoutError:
+            return _fallback(
+                self, prompt, options, f"Ollama timeout tras {self.timeout}s"
+            )
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return _fallback(self, prompt, options, "Ollama respuesta no parseable")
+
+        matched = _match_option(body.get("response", ""), options)
+        if matched is None:
+            try:
+                repair = self._request_decision(
+                    _build_repair_prompt(body.get("response", ""), options)
+                )
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                json.JSONDecodeError,
+                UnicodeDecodeError,
+            ) as exc:
+                return _fallback(
+                    self, prompt, options,
+                    f"Ollama reparación fallida: {type(exc).__name__}",
+                    attempts=2,
+                )
+            matched = _match_option(repair.get("response", ""), options)
+            if matched is None:
+                return _fallback(
+                    self, prompt, options,
+                    "Ollama respuesta no parseable tras reparación",
+                    attempts=2,
+                )
+            source = "repaired"
+            attempts = 2
+        else:
+            source = "model"
+            attempts = 1
+        _record_decision(self, source=source, choice=matched, attempts=attempts)
+        log_event(
+            logger,
+            "provider.ollama.end",
+            provider="ollama",
+            model=self.model,
+            choice=matched,
+            source=source,
+            attempts=attempts,
+            duration_ms=round((time.monotonic() - started) * 1000, 1),
+        )
+        return matched
+
+    def _request_decision(self, prompt: str) -> dict:
         payload = json.dumps({
             "model": self.model,
-            "prompt": full_prompt,
+            "prompt": prompt,
             "stream": False,
         }).encode("utf-8")
         req = urllib.request.Request(
@@ -251,28 +425,8 @@ class OllamaClient:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                body = json.loads(resp.read().decode("utf-8"))
-        except urllib.error.URLError as exc:
-            return _fallback(
-                options, f"No se pudo usar Ollama en {self.host}: {exc}"
-            )
-        except TimeoutError:
-            return _fallback(options, f"Ollama timeout tras {self.timeout}s")
-
-        matched = _match_option(body.get("response", ""), options)
-        if matched is None:
-            return _fallback(options, "Ollama respuesta no parseable")
-        log_event(
-            logger,
-            "provider.ollama.end",
-            provider="ollama",
-            model=self.model,
-            choice=matched,
-            duration_ms=round((time.monotonic() - started) * 1000, 1),
-        )
-        return matched
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
 
     def generate(self, prompt: str) -> str:
         """Texto libre, sin acotar a un conjunto de opciones (usado por

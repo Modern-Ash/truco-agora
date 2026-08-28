@@ -7,11 +7,15 @@ esperas en `Resolviendo jugada…` sin inspeccionar a ciegas el hilo del motor.
 
 ## Cobertura
 
-- HTTP: inicio, fin, estado, duración y `request_id`.
+- HTTP: inicio, fin, estado, duración y `request_id`. Los polls exitosos y
+  rápidos de `/state` se omiten para que no oculten eventos de dominio; los
+  lentos y fallidos se conservan.
 - Sesión: creación, comienzo/fin de mano, recuperación, error y ganador.
-- Step mode: publicación, apertura, liberación, generación y timeout.
+- Step mode: publicación, apertura, liberación, generación, origen
+  `manual|autoplay` y timeout.
 - Controlador LLM: tipo de decisión, opciones legales, elección y duración.
-- Proveedores: binario/modelo, inicio, salida, timeout y fallback.
+- Proveedores: binario/modelo, inicio, salida, timeout, reparación, fallback y
+  procedencia de cada decisión.
 - Motor: reparto, fase, ronda, canto, respuesta, carta, baza, puntos y mano.
 - Catálogo de modelos: proveedor, fuente, duración y cantidad encontrada.
 
@@ -29,8 +33,10 @@ de opciones legales ya público.
   archivo rotativo de hasta 5 MiB con tres respaldos. Un valor vacío lo
   desactiva explícitamente.
 
-En DEBUG cada lectura de estado agrega `state.snapshot` con turno, canto,
-generación y cantidad de eventos, sin serializar manos ni cartas.
+En DEBUG se agrega `state.snapshot.changed` sólo cuando cambia turno, canto,
+generación o cantidad de eventos para ese visor. Incluye metadatos, nunca manos
+ni cartas. Uvicorn corre sin access log en los scripts de desarrollo porque la
+API ya emite eventos estructurados y correlacionables.
 
 `cd webapp && npm run dev` levanta Vite y Uvicorn en el mismo proceso supervisor.
 La terminal conecta directamente el `stdout/stderr` de ambos procesos y

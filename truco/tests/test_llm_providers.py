@@ -16,7 +16,9 @@ from truco.llm_providers import (
     CodexCLIClient,
     OllamaClient,
     OpenCodeCLIClient,
+    _match_option,
     build_llm_client,
+    deterministic_fallback,
     discover_models,
 )
 
@@ -38,25 +40,41 @@ def test_cli_client_parses_matching_option(cls, binary):
     assert run.call_args.args[0][0] == binary
 
 
-def test_cli_client_falls_back_to_first_option_on_unparseable_response():
+def test_cli_client_repairs_unparseable_response_once():
+    client = ClaudeCLIClient()
+    with patch("subprocess.run", side_effect=[
+        _completed("no entendí la pregunta"),
+        _completed('{"choice":"truco"}'),
+    ]) as run:
+        result = client.decide("¿Qué hacés?", ["jugar", "truco"])
+    assert result == "truco"
+    assert run.call_count == 2
+    assert client.last_decision == {
+        "source": "repaired", "choice": "truco", "attempts": 2, "reason": None,
+    }
+
+
+def test_cli_client_uses_stable_fallback_after_failed_repair():
     client = ClaudeCLIClient()
     with patch("subprocess.run", return_value=_completed("no entendí la pregunta")):
         result = client.decide("¿Qué hacés?", ["jugar", "truco"])
-    assert result == "jugar"
+    assert result == deterministic_fallback("¿Qué hacés?", ["jugar", "truco"])
+    assert client.last_decision["source"] == "fallback"
+    assert client.last_decision["attempts"] == 2
 
 
 def test_cli_client_falls_back_on_nonzero_exit():
     client = ClaudeCLIClient()
     with patch("subprocess.run", return_value=_completed("", returncode=1)):
         result = client.decide("¿Qué hacés?", ["jugar", "truco"])
-    assert result == "jugar"
+    assert result == deterministic_fallback("¿Qué hacés?", ["jugar", "truco"])
 
 
 def test_cli_client_falls_back_on_timeout():
     client = ClaudeCLIClient(timeout=0.01)
     with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("claude", 0.01)):
         result = client.decide("¿Qué hacés?", ["jugar", "truco"])
-    assert result == "jugar"
+    assert result == deterministic_fallback("¿Qué hacés?", ["jugar", "truco"])
 
 
 def test_cli_client_falls_back_when_binary_missing():
@@ -72,6 +90,21 @@ def test_cli_client_matches_option_surrounded_by_extra_text():
     assert result == "irse_al_mazo"
 
 
+def test_option_parser_does_not_confuse_quiero_with_no_quiero():
+    assert _match_option("Elijo no_quiero.", ["quiero", "no_quiero"]) == "no_quiero"
+
+
+def test_option_parser_ignores_reasoning_block_and_reads_json():
+    raw = '<think>Podría querer, pero no importa.</think>\n{"choice":"no_quiero"}'
+    assert _match_option(raw, ["quiero", "no_quiero"]) == "no_quiero"
+
+
+def test_stable_fallback_does_not_depend_on_option_order():
+    forward = deterministic_fallback("estado", ["jugar", "truco", "irse_al_mazo"])
+    reverse = deterministic_fallback("estado", ["irse_al_mazo", "truco", "jugar"])
+    assert forward == reverse
+
+
 def test_ollama_client_parses_matching_option():
     client = OllamaClient()
     fake_response = MagicMock()
@@ -82,12 +115,47 @@ def test_ollama_client_parses_matching_option():
     assert result == "quiero"
 
 
+def test_ollama_client_repairs_a_reasoning_only_response():
+    invalid = MagicMock()
+    invalid.read.return_value = b'{"response": "Necesito pensarlo"}'
+    invalid.__enter__.return_value = invalid
+    repaired = MagicMock()
+    repaired.read.return_value = b'{"response": "{\\"choice\\":\\"no_quiero\\"}"}'
+    repaired.__enter__.return_value = repaired
+    client = OllamaClient()
+
+    with patch("urllib.request.urlopen", side_effect=[invalid, repaired]) as request:
+        result = client.decide("¿Aceptás?", ["quiero", "no_quiero"])
+
+    assert result == "no_quiero"
+    assert request.call_count == 2
+    assert client.last_decision["source"] == "repaired"
+
+
 def test_ollama_client_falls_back_on_connection_error():
     import urllib.error
 
     client = OllamaClient()
     with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("refused")):
-        assert client.decide("¿Aceptás?", ["quiero", "no_quiero"]) == "quiero"
+        assert client.decide("¿Aceptás?", ["quiero", "no_quiero"]) == (
+            deterministic_fallback("¿Aceptás?", ["quiero", "no_quiero"])
+        )
+    assert client.last_decision["source"] == "fallback"
+    assert client.last_decision["reason"] == "provider-unavailable"
+
+
+def test_ollama_invalid_json_uses_safe_public_reason():
+    response = MagicMock()
+    response.read.return_value = b"not-json"
+    response.__enter__.return_value = response
+    client = OllamaClient(host="http://user:private@example.invalid")
+
+    with patch("urllib.request.urlopen", return_value=response):
+        result = client.decide("¿Aceptás?", ["quiero", "no_quiero"])
+
+    assert result in {"quiero", "no_quiero"}
+    assert client.last_decision["reason"] == "invalid-response"
+    assert "private" not in client.last_decision["reason"]
 
 
 def test_ollama_client_falls_back_on_http_404():

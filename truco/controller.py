@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Protocol
 
 from .cards import Card
+from .llm_providers import deterministic_fallback
 from .observability import log_event
 
 ENVIDO_CALLS = ["envido", "real_envido", "falta_envido"]
@@ -135,6 +136,7 @@ class LLMController(PlayerController):
         self.client = client
         self.match_id = match_id
         self.bluff_level = bluff_level if bluff_level in self.ESTRATEGIA_POR_NIVEL else "equilibrado"
+        self.last_decision: Optional[dict] = None
 
     def _fmt(self, cards) -> str:
         return [str(c) if c is not None else "carta tapada" for c in cards]
@@ -205,8 +207,8 @@ class LLMController(PlayerController):
         Los adaptadores ya degradan timeouts y respuestas inválidas. La falta
         del CLI, un modelo local ausente o una caída del servicio pueden
         todavía levantar una excepción. Como ``options`` contiene únicamente
-        decisiones legales construidas por el motor, la primera opción es un
-        fallback seguro y determinista que no altera las reglas.
+        decisiones legales construidas por el motor, se usa un fallback legal
+        reproducible y su procedencia queda registrada.
         """
         if not options:
             raise ValueError("No hay opciones para decidir")
@@ -222,6 +224,13 @@ class LLMController(PlayerController):
         )
         try:
             choice = self.client.decide(prompt, options)
+            if choice not in options:
+                raise ValueError("El proveedor devolvió una opción fuera del conjunto legal")
+            provider_decision = getattr(self.client, "last_decision", None)
+            self.last_decision = dict(provider_decision or {
+                "source": "model", "choice": choice, "attempts": 1,
+                "reason": None,
+            })
             log_event(
                 logger,
                 "llm.decision.end",
@@ -229,6 +238,8 @@ class LLMController(PlayerController):
                 player=self.name,
                 kind=decision_kind,
                 choice=choice,
+                source=self.last_decision["source"],
+                attempts=self.last_decision["attempts"],
                 duration_ms=round((time.monotonic() - started) * 1000, 1),
             )
             return choice
@@ -239,8 +250,15 @@ class LLMController(PlayerController):
                 self.name,
                 type(exc).__name__,
                 exc,
-                options[0],
+                deterministic_fallback(prompt, options),
             )
+            choice = deterministic_fallback(prompt, options)
+            self.last_decision = {
+                "source": "fallback",
+                "choice": choice,
+                "attempts": 1,
+                "reason": f"{type(exc).__name__}: provider unavailable",
+            }
             log_event(
                 logger,
                 "llm.decision.fallback",
@@ -249,10 +267,11 @@ class LLMController(PlayerController):
                 player=self.name,
                 kind=decision_kind,
                 error_type=type(exc).__name__,
-                choice=options[0],
+                choice=choice,
+                strategy="stable-hash",
                 duration_ms=round((time.monotonic() - started) * 1000, 1),
             )
-            return options[0]
+            return choice
 
     def choose_action(self, state: VisibleState, available_calls: List[str]) -> str:
         options = ["jugar"] + available_calls + ["irse_al_mazo"]

@@ -61,6 +61,15 @@ const CALL_RESPONSE_LABELS = {
   con_flor_me_achico: "Con flor me achico",
 };
 
+const FALLBACK_REASON_LABELS = {
+  "provider-timeout": "El proveedor excedió el tiempo de espera",
+  "provider-unavailable": "El proveedor no estaba disponible",
+  "provider-exit": "El proveedor terminó con error",
+  "repair-failed": "No se pudo normalizar la respuesta del proveedor",
+  "invalid-response": "El proveedor no devolvió una opción válida",
+  "provider-error": "El proveedor no pudo completar la decisión",
+};
+
 function llmIdentity(config) {
   if (!config?.provider) return null;
   const provider = PROVIDER_LABELS[config.provider] || config.provider;
@@ -152,6 +161,7 @@ export default function Table({ state: propState, matchId, seat }) {
   const [autoPlay, setAutoPlay] = useState(() => seat == null);
   const [autoDelay, setAutoDelay] = useState(2000);
   const [stepping, setStepping] = useState(false);
+  const [stepSource, setStepSource] = useState(null);
   const [dealPhase, setDealPhase] = useState(
     () => propState?.finished || !propState?.mano ? null : "shuffle"
   );
@@ -163,6 +173,7 @@ export default function Table({ state: propState, matchId, seat }) {
   const prevRef = useRef(null);
   const stepModeSeenRef = useRef(Boolean(propState?.step_mode || propState?.pending_step));
   const dealtManoRef = useRef(null);
+  const steppingRef = useRef(false);
 
   useEffect(() => {
     setState((current) => preserveEngineConfig(current, propState));
@@ -246,16 +257,23 @@ export default function Table({ state: propState, matchId, seat }) {
   const stepGeneration = state.step_generation ??
     `${pendingStep?.player || "none"}:${pendingStep?.kind || "none"}`;
 
-  async function step() {
-    if (stepping) return;
+  async function step(source = "manual") {
+    if (steppingRef.current) return;
+    steppingRef.current = true;
     setStepping(true);
+    setStepSource(source);
     try {
-      const next = await postStep(matchId);
+      const next = await postStep(matchId, source);
       setState((current) => preserveEngineConfig(current, next));
-    } catch {
-      // el polling repone el estado real si algo falla en el medio
+    } catch (error) {
+      setActionError(
+        `No se pudo avanzar la jugada: ${error?.message || "error de conexión"}`
+      );
+      if (source === "autoplay") setAutoPlay(false);
     } finally {
+      steppingRef.current = false;
       setStepping(false);
+      setStepSource(null);
     }
   }
 
@@ -264,14 +282,14 @@ export default function Table({ state: propState, matchId, seat }) {
   // real que tarda cada agente en decidir (puede variar mucho entre
   // proveedores) en lugar de superponer pedidos.
   useEffect(() => {
-    if (!autoPlay || !pendingStep || state.finished) return;
+    if (!autoPlay || stepping || !pendingStep || state.finished) return;
     const delay = pendingStep.kind === "card"
       ? autoDelay
       : INTERNAL_AUTOPLAY_DELAY_MS;
-    const t = setTimeout(() => { step(); }, delay);
+    const t = setTimeout(() => { step("autoplay"); }, delay);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoPlay, autoDelay, stepGeneration, state.finished]);
+  }, [autoPlay, autoDelay, stepGeneration, state.finished, stepping]);
 
   // Entrega de señas (reglas-v2.md §4): mostrar y auto-ocultar
   useEffect(() => {
@@ -433,7 +451,9 @@ export default function Table({ state: propState, matchId, seat }) {
           autoDelay={autoDelay}
           setAutoDelay={setAutoDelay}
           stepping={stepping}
+          stepSource={stepSource}
           recovering={Boolean(state.recovering)}
+          lastAgentDecision={state.last_agent_decision}
           dealPhase={dealPhase}
           soundEnabled={soundEnabled}
           onToggleSound={() => setSoundEnabled((enabled) => !enabled)}
@@ -717,7 +737,9 @@ function SpectatorArena({
   autoDelay,
   setAutoDelay,
   stepping,
+  stepSource,
   recovering,
+  lastAgentDecision,
   dealPhase,
   soundEnabled,
   onToggleSound,
@@ -861,6 +883,16 @@ function SpectatorArena({
               ? `Automático · ${autoDelay / 1000}s entre cartas`
               : "Pausado · avance manual"}
           </span>
+          {lastAgentDecision?.source === "fallback" && (
+            <span
+              className="rounded-full border border-oro/40 bg-oro/10 px-3 py-1 text-xs font-semibold text-oro"
+              data-testid="agent-fallback-status"
+              title={FALLBACK_REASON_LABELS[lastAgentDecision.reason]
+                || "El proveedor no devolvió una opción válida"}
+            >
+              Fallback legal · {lastAgentDecision.player}
+            </span>
+          )}
         </div>
       </div>
 
@@ -909,7 +941,9 @@ function SpectatorArena({
             recovering
               ? "Recuperando la mano…"
               : stepping
-                ? "Resolviendo jugada…"
+                ? stepSource === "autoplay"
+                  ? "Resolviendo jugada automática…"
+                  : "Resolviendo jugada manual…"
                 : stepMode && !pendingStep && !finished
                   ? "Preparando jugada…"
                   : null
@@ -956,7 +990,7 @@ function SpectatorArena({
               aria-busy={stepping}
               onClick={() => {
                 setAutoPlay(false);
-                onStep();
+                onStep("manual");
               }}
               className="step-controls__next min-h-11 rounded-full border border-teal/50 bg-teal/20 px-5
                          text-sm font-bold text-teal shadow-[0_0_16px_rgba(46,230,196,0.18)]

@@ -67,6 +67,7 @@ const api = launch(
   resolve(ROOT_DIR, ".venv", "bin", "python"),
   [
     "-m", "uvicorn", "truco.api:app", "--reload",
+    "--no-access-log",
     "--host", API_URL.hostname,
     "--port", API_URL.port || "8000",
   ],

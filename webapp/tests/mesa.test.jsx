@@ -873,7 +873,7 @@ test("click en 'Siguiente movida' llama a postStep y refresca el estado", async 
 
   await user.click(screen.getByTestId("siguiente-movida"));
   expect(screen.getByTestId("auto-play")).not.toBeChecked();
-  await waitFor(() => expect(postStep).toHaveBeenCalledWith("m1"));
+  await waitFor(() => expect(postStep).toHaveBeenCalledWith("m1", "manual"));
   await waitFor(() =>
     expect(within(screen.getByTestId("step-controls")).getByText(/Beto/)).toBeInTheDocument()
   );
@@ -893,7 +893,7 @@ test("auto-play llama a postStep automáticamente tras el delay elegido", async 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
-    expect(postStep).toHaveBeenCalledWith("m1");
+    expect(postStep).toHaveBeenCalledWith("m1", "autoplay");
   } finally {
     vi.useRealTimers();
   }
@@ -915,7 +915,7 @@ test("auto-play procesa rápido las decisiones internas antes de la carta", asyn
     await act(async () => { await vi.advanceTimersByTimeAsync(199); });
     expect(postStep).not.toHaveBeenCalled();
     await act(async () => { await vi.advanceTimersByTimeAsync(1); });
-    expect(postStep).toHaveBeenCalledWith("m1");
+    expect(postStep).toHaveBeenCalledWith("m1", "autoplay");
   } finally {
     vi.useRealTimers();
   }
@@ -939,6 +939,50 @@ test("auto-play continúa con pasos consecutivos del mismo jugador y tipo", asyn
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("auto-play se pausa y explica un fallo al avanzar", async () => {
+  vi.useFakeTimers();
+  try {
+    postStep.mockReset();
+    postStep.mockRejectedValue(new Error("backend no disponible"));
+    render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+
+    expect(postStep).toHaveBeenCalledWith("m1", "autoplay");
+    expect(screen.getByTestId("auto-play")).not.toBeChecked();
+    expect(screen.getByTestId("toast-error")).toHaveTextContent(
+      "backend no disponible"
+    );
+    expect(screen.getByTestId("spectator-status")).toHaveTextContent("Pausado");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("hace visible una decisión de fallback del agente", () => {
+  render(
+    <Table
+      state={estadoSpectator({
+        last_agent_decision: {
+          id: 4,
+          type: "agent_decision",
+          player: "Ana",
+          kind: "response",
+          choice: "no_quiero",
+          source: "fallback",
+          reason: "respuesta no parseable",
+        },
+      })}
+      matchId="m1"
+      seat={null}
+    />
+  );
+
+  expect(screen.getByTestId("agent-fallback-status")).toHaveTextContent(
+    "Fallback legal · Ana"
+  );
 });
 
 test("bazas de la mesa se muestran también en vista de espectador", () => {

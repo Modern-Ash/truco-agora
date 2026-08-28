@@ -46,7 +46,9 @@ intercambios de cantos antes de llegar a jugar una carta).
   no hay ninguna esperando, ej. si la partida ya terminó o no es
   step_mode) y devuelve el snapshot recién cuando la decisión quedó aplicada
   y la siguiente fue publicada. De este modo, al elegir una carta la respuesta
-  ya la incluye en `played` y nunca expone el estado intermedio del gate.
+  ya la incluye en `played` y nunca expone el estado intermedio del gate. El
+  body opcional `{"source":"manual|autoplay"}` deja trazado quién abrió el
+  gate; omitirlo conserva compatibilidad y equivale a `manual`.
 - Snapshot: campos `pending_step: {player, kind, call?} | null`,
   `step_generation: int` y `table_events`. La generación cambia en cada
   transición del gate para que un cliente pueda distinguir dos pasos
@@ -77,6 +79,11 @@ intercambios de cantos antes de llegar a jugar una carta).
     sin cambio visible avanzan en 200 ms. Se detiene al terminar la partida,
     al desactivar el toggle o al usar "Siguiente movida" para pasar a control
     manual.
+  - Un request automático fallido pausa el autoplay y muestra el error. La
+    siguiente generación se agenda después de cerrar la anterior, incluso si
+    el backend publica dos pasos consecutivos del mismo jugador y tipo.
+  - El spinner distingue una jugada manual de una automática y la cabecera
+    identifica cuando la última decisión se obtuvo mediante fallback legal.
   - Texto legible: "Próxima movida: {player} va a {kind}".
 
 El dock se colapsa automáticamente al ancho de los controles durante

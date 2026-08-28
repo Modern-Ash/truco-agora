@@ -110,6 +110,7 @@ class SteppedController(PlayerController):
     def choose_action(self, state: VisibleState, available_calls: List[str]) -> str:
         self._await_step("action")
         action = self._inner.choose_action(state, available_calls)
+        self._publish_decision("action", action)
         log_event(
             logger,
             "stepped_controller.choice",
@@ -125,6 +126,7 @@ class SteppedController(PlayerController):
     def choose_card(self, state: VisibleState) -> Card:
         self._await_step("card")
         card = self._inner.choose_card(state)
+        self._publish_decision("card", "card_selected")
         log_event(
             logger,
             "stepped_controller.choice",
@@ -138,6 +140,7 @@ class SteppedController(PlayerController):
     def choose_call_response(self, state: VisibleState, call: str) -> str:
         self._await_step("response", call=call)
         response = self._inner.choose_call_response(state, call)
+        self._publish_decision("response", response, call=call)
         log_event(
             logger,
             "stepped_controller.choice",
@@ -162,6 +165,23 @@ class SteppedController(PlayerController):
                 "response": response,
             })
         return response
+
+    def _publish_decision(self, kind: str, choice: str,
+                          call: Optional[str] = None) -> None:
+        decision = getattr(self._inner, "last_decision", None) or {}
+        event = {
+            "type": "agent_decision",
+            "player": self.name,
+            "kind": kind,
+            "choice": choice,
+            "source": decision.get("source", "controller"),
+            "attempts": decision.get("attempts", 1),
+        }
+        if call is not None:
+            event["call"] = call
+        if decision.get("reason"):
+            event["reason"] = decision["reason"]
+        self._on_event(event)
 
     def choose_face_down(self, state: VisibleState) -> bool:
         # No es una "movida" separada desde la perspectiva de un espectador
