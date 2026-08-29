@@ -12,13 +12,13 @@ const STICKS = [
 export default function Scoreboard({ teams, target, winner, finished }) {
   return (
     <section
-      className="marcador glass-panel w-full max-w-xl min-w-0 rounded-2xl px-3 py-2.5
-                 font-mono text-crema shadow-lg shadow-black/30 sm:px-4"
+      className="marcador glass-panel w-full max-w-2xl min-w-0 rounded-2xl px-4 py-3
+                 font-mono text-crema shadow-lg shadow-black/30 sm:px-5 sm:py-3.5"
       data-testid="marcador"
       aria-label={`Marcador tradicional, partida a ${target} puntos`}
     >
-      <header className="mb-2 flex items-center justify-between border-b
-                         border-glass-border/80 pb-1.5">
+      <header className="mb-2.5 flex items-center justify-between border-b
+                         border-glass-border/80 pb-2">
         <h2 className="font-body text-[0.64rem] font-bold uppercase tracking-[0.2em]
                        text-crema/65">
           A {target} puntos
@@ -51,7 +51,7 @@ function TeamScore({ team, target, champion }) {
   return (
     <article
       className={
-        "equipo min-w-0 rounded-xl border px-2 py-2 sm:px-3 " +
+        "equipo min-w-0 rounded-xl border px-2.5 py-2.5 sm:px-3.5 " +
         (champion
           ? "campeon border-oro/55 bg-oro/10 shadow-[0_0_20px_rgba(232,184,75,.14)]"
           : "border-crema/10 bg-black/15")

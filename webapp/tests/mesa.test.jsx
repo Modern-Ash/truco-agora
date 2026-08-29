@@ -493,6 +493,35 @@ test("grafica las fases de mezcla y reparto dentro del paño", async () => {
   }
 });
 
+test("vuelve a mezclar y repartir cuando comienza otra mano", async () => {
+  vi.useFakeTimers();
+  try {
+    const firstHand = estadoSpectator();
+    firstHand.others[0].played = [{ palo: "oro", numero: 7 }];
+    firstHand.others[1].played = [{ palo: "copa", numero: 4 }];
+    const nextHand = estadoSpectator({ mano: "Ana", step_generation: 4 });
+    const { rerender } = render(
+      <Table state={firstHand} matchId="m1" seat={null} />
+    );
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1250); });
+    expect(screen.queryByTestId("deal-sequence")).not.toBeInTheDocument();
+
+    rerender(<Table state={nextHand} matchId="m1" seat={null} />);
+    await act(async () => {});
+
+    expect(screen.getByTestId("deal-sequence")).toHaveTextContent(
+      "Mezclando el mazo"
+    );
+    await act(async () => { await vi.advanceTimersByTimeAsync(480); });
+    expect(screen.getByTestId("deal-sequence")).toHaveTextContent(
+      "Repartiendo cartas"
+    );
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test("permite activar el sonido accesible de mezcla y reparto", async () => {
   const user = userEvent.setup();
   localStorage.removeItem("truco:table-sound");
@@ -531,20 +560,20 @@ test("mantiene visible el canto LLM y su respuesta durante Preparando jugada", a
   const { rerender } = render(<Table state={live} matchId="m1" seat={null} />);
   fireEvent.click(screen.getByTestId("auto-play"));
 
-  expect(screen.getByTestId("player-call-chat-Beto")).toHaveTextContent("Respondiendo");
-  expect(screen.getByTestId("call-typing-Beto")).toHaveTextContent("pensando respuesta");
-  expect(within(screen.getByTestId("player-call-chat-Ana")).getByText("¡Truco!")).toBeInTheDocument();
+  const chat = screen.getByTestId("table-call-chat");
+  expect(screen.getAllByTestId("table-call-chat")).toHaveLength(1);
+  expect(screen.getByTestId("call-typing-Beto")).toHaveTextContent("Beto está pensando");
+  expect(within(chat).getByText("¡Truco!")).toBeInTheDocument();
 
   rerender(<Table state={preparing} matchId="m1" seat={null} />);
   await waitFor(() => expect(screen.getByTestId("table-wait-status")).toHaveTextContent(
     "Preparando jugada"
   ));
-  expect(within(screen.getByTestId("player-call-chat-Ana")).getByText("¡Truco!")).toBeInTheDocument();
-  expect(within(screen.getByTestId("player-call-chat-Ana")).getByText("cantó")).toBeInTheDocument();
-  expect(within(screen.getByTestId("player-call-chat-Beto")).getByText("Quiero")).toBeInTheDocument();
-  expect(within(screen.getByTestId("player-call-chat-Beto")).getByText("respondió a Truco")).toBeInTheDocument();
-  expect(screen.getByTestId("call-announcement-Ana")).toBeInTheDocument();
-  expect(screen.getByTestId("call-announcement-Beto")).toBeInTheDocument();
+  expect(within(chat).getByText("¡Truco!")).toBeInTheDocument();
+  expect(within(chat).getByText("cantó")).toBeInTheDocument();
+  expect(within(chat).getByText("Quiero")).toBeInTheDocument();
+  expect(within(chat).getByText("respondió a Truco")).toBeInTheDocument();
+  expect(screen.getByTestId("call-announcement-table")).toHaveAttribute("role", "log");
 });
 
 test("presenta los cantos como una conversación alineada por jugador", () => {
@@ -558,21 +587,44 @@ test("presenta los cantos como una conversación alineada por jugador", () => {
   });
   render(<Table state={state} matchId="m1" seat={null} />);
 
-  expect(screen.getByTestId("call-announcement-Ana")).toHaveAttribute("role", "log");
-  expect(screen.getByTestId("call-announcement-Beto")).toHaveAttribute("role", "log");
+  const chat = screen.getByTestId("table-call-chat");
+  const messages = screen.getAllByTestId(/call-chat-message-/);
+
+  expect(screen.getAllByTestId("table-call-chat")).toHaveLength(1);
+  expect(screen.getByTestId("call-announcement-table")).toHaveAttribute("role", "log");
   expect(screen.getAllByTestId(/call-chat-message-/)).toHaveLength(4);
-  expect(screen.getByTestId("player-call-chat-Ana")).toHaveClass("player-call-chat--top");
-  expect(screen.getByTestId("player-call-chat-Beto")).toHaveClass("player-call-chat--bottom");
+  expect(messages.map((message) => message.dataset.testid)).toEqual([
+    "call-chat-message-1",
+    "call-chat-message-2",
+    "call-chat-message-3",
+    "call-chat-message-4",
+  ]);
+  expect(screen.getByTestId("call-chat-message-1")).toHaveClass(
+    "table-call-chat__bubble--left",
+    "table-call-chat__bubble--teal"
+  );
+  expect(screen.getByTestId("call-chat-message-2")).toHaveClass(
+    "table-call-chat__bubble--right",
+    "table-call-chat__bubble--violet"
+  );
+  expect(screen.getByTestId("call-chat-message-3")).toHaveClass(
+    "table-call-chat__bubble--left",
+    "table-call-chat__bubble--teal"
+  );
+  expect(screen.getByTestId("call-chat-message-4")).toHaveClass(
+    "table-call-chat__bubble--right",
+    "table-call-chat__bubble--violet"
+  );
   expect(screen.getByTestId("spectator-player-Ana")).toHaveClass("spectator-player-panel");
-  expect(screen.getByTestId("player-call-chat-Ana")).toHaveClass("spectator-player-panel");
   expect(screen.getByTestId("spectator-player-Beto")).toHaveClass("spectator-player-panel");
-  expect(screen.getByTestId("player-call-chat-Beto")).toHaveClass("spectator-player-panel");
   expect(screen.getByTestId("spectator-player-Ana").parentElement).toHaveClass(
     "spectator-player-cluster--top"
   );
   expect(screen.getByTestId("spectator-player-Beto").parentElement).toHaveClass(
     "spectator-player-cluster--bottom"
   );
+  expect(chat.parentElement).toBe(screen.getByTestId("spectator-middle"));
+  expect(screen.getByTestId("spectator-trick").parentElement).toBe(chat.parentElement);
   expect(screen.getByTestId("call-chat-message-3")).toHaveTextContent("Falta Envido");
   expect(within(screen.getByTestId("call-chat-message-4")).getByText("Quiero")).toBeInTheDocument();
   expect(within(screen.getByTestId("call-chat-message-4")).getByText("respondió a Falta Envido")).toBeInTheDocument();
@@ -581,8 +633,8 @@ test("presenta los cantos como una conversación alineada por jugador", () => {
 test("explica explícitamente cuando todavía no hubo cantos", () => {
   render(<Table state={estadoSpectator()} matchId="m1" seat={null} />);
 
-  expect(screen.getByTestId("no-call-status-Ana")).toHaveTextContent("Todavía no cantó");
-  expect(screen.getByTestId("no-call-status-Beto")).toHaveTextContent("Todavía no cantó");
+  expect(screen.getAllByTestId("table-call-chat")).toHaveLength(1);
+  expect(screen.getByTestId("no-call-status-table")).toHaveTextContent("Todavía no hubo cantos");
   expect(screen.queryByTestId("legacy-events-warning")).not.toBeInTheDocument();
 });
 
@@ -626,6 +678,78 @@ test("reserva tres lugares de carta para que el puesto y el paño no cambien de 
   expect(screen.getAllByTestId(/spectator-hand-placeholder-Ana-/)).toHaveLength(2);
   expect(screen.getAllByTestId(/spectator-hand-placeholder-Beto-/)).toHaveLength(3);
   expect(screen.getByText("Beto ya no tiene cartas en la mano")).toHaveClass("sr-only");
+});
+
+test("mantiene estables los paneles con nombres y modelos largos", () => {
+  const longName = "Agente estratega del litoral con un nombre extraordinariamente largo";
+  const longModel = "nemotron-3-ultra-free-experimental-context-window-extended";
+  const state = estadoSpectator({
+    teams: [
+      { name: "Equipo 1", score: 0, players: [longName] },
+      { name: "Equipo 2", score: 0, players: ["Beto"] },
+    ],
+    mano: longName,
+    turn: longName,
+    pending_step: { player: longName, kind: "card" },
+  });
+  state.others[0] = {
+    ...state.others[0],
+    name: longName,
+    agent: {
+      ...state.others[0].agent,
+      provider: "opencode",
+      model: longModel,
+    },
+  };
+
+  render(<Table state={state} matchId="m1" seat={null} />);
+
+  expect(screen.getByTestId(`spectator-player-${longName}`)).toHaveClass(
+    "spectator-player-card"
+  );
+  expect(screen.getByTestId(`spectator-player-name-${longName}`)).toHaveClass(
+    "spectator-player-name",
+    "truncate"
+  );
+  expect(screen.getByTestId(`spectator-player-name-${longName}`)).toHaveAttribute(
+    "title",
+    longName
+  );
+  expect(screen.getByTestId("spectator-team-label-Equipo 1")).toHaveClass("truncate");
+  expect(screen.getByTestId("spectator-team-label-Equipo 1")).toHaveAttribute(
+    "title",
+    `Jugador · ${longName}`
+  );
+  expect(screen.getByTestId(`agent-identity-${longName}`)).toHaveClass("truncate");
+  expect(screen.getByTestId(`agent-identity-${longName}`).parentElement).toHaveClass(
+    "flex-nowrap",
+    "overflow-hidden"
+  );
+  expect(
+    screen.getByTestId(`spectator-player-${longName}`).querySelector(".spectator-player-agent")
+  ).toBeInTheDocument();
+  expect(screen.getByTestId(`agent-identity-${longName}`)).toHaveAttribute(
+    "title",
+    `OpenCode · ${longModel}`
+  );
+});
+
+test("el marcador usa el panel ampliado sin perder nombres largos", () => {
+  const longTeamName = "La escuadra federal de campeones del litoral";
+  const state = estado1v1({
+    teams: [
+      { name: longTeamName, score: 14, players: [longTeamName] },
+      { name: "Rivales", score: 12, players: ["Rivales"] },
+    ],
+  });
+
+  render(<Table state={state} matchId="m1" seat="Ana" />);
+
+  expect(screen.getByTestId("marcador")).toHaveClass("max-w-2xl", "px-4", "py-3");
+  expect(screen.getByTestId(`equipo-${longTeamName}`).querySelector(".nombre")).toHaveAttribute(
+    "title",
+    longTeamName
+  );
 });
 
 test("pantalla y arena de espectador comparten el shell centrado", () => {
@@ -775,9 +899,7 @@ test("sin pending_step mantiene los controles y deshabilita siguiente", () => {
     "Preparando jugada"
   );
   expect(screen.getByTestId("table-wait-status")).toHaveClass(
-    "top-1/2",
-    "-translate-y-1/2",
-    "justify-center"
+    "top-2"
   );
 });
 
@@ -1029,7 +1151,7 @@ test("la carta viaja desde la mano del jugador hasta su lugar en la baza", async
   }
 });
 
-test("la baza muestra solo la carta de la ronda vigente", () => {
+test("la baza conserva el historial de cartas con una pila compacta", () => {
   const st = estadoSpectator();
   st.others[0].played = [
     { palo: "oro", numero: 7 },
@@ -1040,7 +1162,21 @@ test("la baza muestra solo la carta de la ronda vigente", () => {
   render(<Table state={st} matchId="m1" seat={null} />);
 
   expect(screen.getByTestId("spectator-trick")).toHaveTextContent("2.ª");
-  expect(screen.getByTestId("played-card-Ana-0")).toHaveTextContent("1");
-  expect(screen.queryByTestId("played-card-Beto-0")).not.toBeInTheDocument();
-  expect(screen.getByTestId("played-placeholder-Beto-0")).toBeInTheDocument();
+  expect(screen.getByTestId("played-card-Ana-0")).toHaveTextContent("7");
+  expect(screen.getByTestId("played-card-Ana-1")).toHaveTextContent("1");
+  expect(screen.getByTestId("played-stack-Ana")).toHaveClass(
+    "trick-card-stack--stacked"
+  );
+  expect(screen.getByTestId("played-card-layer-Ana-0")).toHaveStyle({
+    "--stack-index": "0",
+    "--stack-size": "2",
+  });
+  expect(screen.getByTestId("played-card-layer-Ana-1")).toHaveStyle({
+    "--stack-index": "1",
+    "--stack-size": "2",
+  });
+  expect(screen.getByTestId("played-card-Beto-0")).toHaveTextContent("4");
+  expect(screen.getByTestId("played-stack-Beto")).toHaveClass(
+    "trick-card-stack--single"
+  );
 });

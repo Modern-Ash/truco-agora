@@ -70,6 +70,8 @@ const FALLBACK_REASON_LABELS = {
   "provider-error": "El proveedor no pudo completar la decisión",
 };
 
+const CHAT_TONES = ["teal", "violet", "gold", "coral"];
+
 function llmIdentity(config) {
   if (!config?.provider) return null;
   const provider = PROVIDER_LABELS[config.provider] || config.provider;
@@ -172,7 +174,9 @@ export default function Table({ state: propState, matchId, seat }) {
   const [historialAbierto, setHistorialAbierto] = useState(false);
   const prevRef = useRef(null);
   const stepModeSeenRef = useRef(Boolean(propState?.step_mode || propState?.pending_step));
-  const dealtManoRef = useRef(null);
+  const dealtHandRef = useRef(null);
+  const dealTimerRef = useRef(null);
+  const finishDealTimerRef = useRef(null);
   const steppingRef = useRef(false);
 
   useEffect(() => {
@@ -180,20 +184,44 @@ export default function Table({ state: propState, matchId, seat }) {
   }, [propState]);
 
   useEffect(() => {
-    if (state.finished || !state.mano) {
-      setDealPhase(null);
-      return undefined;
-    }
-    if (dealtManoRef.current === state.mano) return undefined;
-    dealtManoRef.current = state.mano;
-    setDealPhase("shuffle");
-    const dealTimer = setTimeout(() => setDealPhase("deal"), 480);
-    const finishTimer = setTimeout(() => setDealPhase(null), 1250);
-    return () => {
-      clearTimeout(dealTimer);
-      clearTimeout(finishTimer);
+    const clearDealTimers = () => {
+      clearTimeout(dealTimerRef.current);
+      clearTimeout(finishDealTimerRef.current);
+      dealTimerRef.current = null;
+      finishDealTimerRef.current = null;
     };
-  }, [state.finished, state.mano]);
+
+    if (state.finished || !state.mano) {
+      clearDealTimers();
+      setDealPhase(null);
+      return;
+    }
+
+    const players = [
+      ...(state.you ? [state.you] : []),
+      ...(state.others || []),
+    ];
+    const playedCount = players.reduce(
+      (total, player) => total + (player.played || []).length,
+      0
+    );
+    const previousHand = dealtHandRef.current;
+    const newHand = !previousHand
+      || previousHand.mano !== state.mano
+      || playedCount < previousHand.playedCount;
+    dealtHandRef.current = { mano: state.mano, playedCount };
+    if (!newHand) return;
+
+    clearDealTimers();
+    setDealPhase("shuffle");
+    dealTimerRef.current = setTimeout(() => setDealPhase("deal"), 480);
+    finishDealTimerRef.current = setTimeout(() => setDealPhase(null), 1250);
+  }, [state.finished, state.mano, state.you, state.others]);
+
+  useEffect(() => () => {
+    clearTimeout(dealTimerRef.current);
+    clearTimeout(finishDealTimerRef.current);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(TABLE_SOUND_KEY, soundEnabled ? "1" : "0");
@@ -927,28 +955,33 @@ function SpectatorArena({
               mano={mano}
               turn={turn}
               side="top"
-              tableEvents={tableEvents}
-              currentCall={activeCall}
             />
           )}
           <span className="spectator-table-head__balance" aria-hidden="true" />
         </div>
 
-        <SpectatorTrick
-          players={players}
-          receivingPlayer={cardFlight?.playerName || null}
-          waitStatus={
-            recovering
-              ? "Recuperando la mano…"
-              : stepping
-                ? stepSource === "autoplay"
-                  ? "Resolviendo jugada automática…"
-                  : "Resolviendo jugada manual…"
-                : stepMode && !pendingStep && !finished
-                  ? "Preparando jugada…"
-                  : null
-          }
-        />
+        <div className="spectator-middle" data-testid="spectator-middle">
+          <SpectatorTrick
+            players={players}
+            receivingPlayer={cardFlight?.playerName || null}
+            waitStatus={
+              recovering
+                ? "Recuperando la mano…"
+                : stepping
+                  ? stepSource === "autoplay"
+                    ? "Resolviendo jugada automática…"
+                    : "Resolviendo jugada manual…"
+                  : stepMode && !pendingStep && !finished
+                    ? "Preparando jugada…"
+                    : null
+            }
+          />
+          <TableCallChat
+            players={players}
+            events={tableEvents}
+            current={activeCall}
+          />
+        </div>
 
         {teams[1] && (
           <SpectatorTeam
@@ -956,8 +989,6 @@ function SpectatorArena({
             mano={mano}
             turn={turn}
             side="bottom"
-            tableEvents={tableEvents}
-            currentCall={activeCall}
           />
         )}
       </div>
@@ -1136,14 +1167,11 @@ function SpectatorTrick({
     0,
     ...players.map((player) => (player.played || []).length)
   );
-  const currentCards = new Map(
-    players.map((player) => {
-      const played = player.played || [];
-      return [
-        player.name,
-        trickNumber > 0 && played.length === trickNumber ? [played.at(-1)] : [],
-      ];
-    })
+  // Keep the hand history visible: the newest card sits on top of a compact
+  // stack so players can still identify the previous plays without enlarging
+  // the table dramatically.
+  const playedCards = new Map(
+    players.map((player) => [player.name, player.played || []])
   );
 
   return (
@@ -1166,7 +1194,7 @@ function SpectatorTrick({
           "items-center justify-center gap-2 whitespace-nowrap bg-base-deep/90 px-4 py-1 " +
           "text-center font-bold uppercase " +
           (waitStatus
-            ? "top-1/2 -translate-y-1/2 rounded-full border border-teal/30 " +
+            ? "top-2 rounded-full border border-teal/30 " +
               "text-[0.62rem] tracking-[0.08em] text-teal"
             : "top-0 rounded-b-xl border-x border-b border-oro/25 " +
               "text-[0.58rem] tracking-[0.24em] text-oro/80")
@@ -1188,7 +1216,7 @@ function SpectatorTrick({
           <PlayedCardsSpot
             key={player.name}
             player={player}
-            cards={currentCards.get(player.name)}
+            cards={playedCards.get(player.name) || []}
             receiving={receivingPlayer === player.name}
           />
         ))}
@@ -1197,22 +1225,27 @@ function SpectatorTrick({
   );
 }
 
-function PlayerCallChat({ player, events, current, side }) {
+function TableCallChat({ players, events, current }) {
   const logRef = useRef(null);
   const messages = (events || []).filter(
-    (event) => (event.type === "call" || event.type === "call_response")
-      && event.player === player.name
+    (event) => event.type === "call" || event.type === "call_response"
   );
-  if (messages.length === 0 && current?.player === player.name) {
+  if (messages.length === 0 && current?.player) {
     messages.push({
-          id: "legacy-current-call",
-          type: "call",
-          player: current.player,
-          call: current.call,
-        });
+      id: "legacy-current-call",
+      type: "call",
+      player: current.player,
+      call: current.call,
+    });
   }
   const lastMessageId = messages.at(-1)?.id;
-  const isResponding = current?.live && current.responder === player.name;
+  const respondingPlayer = current?.live ? current.responder : null;
+  const participantMeta = new Map(
+    players.map((player, index) => [player.name, {
+      side: index % 2 === 0 ? "left" : "right",
+      tone: CHAT_TONES[index % CHAT_TONES.length],
+    }])
+  );
 
   useEffect(() => {
     const log = logRef.current;
@@ -1221,18 +1254,21 @@ function PlayerCallChat({ player, events, current, side }) {
 
   return (
     <section
-      className={`spectator-player-panel player-call-chat player-call-chat--${side}`}
-      data-testid={`player-call-chat-${player.name}`}
-      aria-label={`Historial de cantos de ${player.name}`}
+      className="table-call-chat table-call-chat--full-height"
+      data-testid="table-call-chat"
+      aria-label="Conversación de cantos de la mesa"
     >
-      <header className="player-call-chat__header">
-        <span>Voz de {player.name}</span>
-        <strong>{isResponding ? "Respondiendo…" : `${messages.length} mensaje${messages.length === 1 ? "" : "s"}`}</strong>
+      <header className="table-call-chat__header">
+        <div>
+          <span>Conversación</span>
+          <strong>Mesa en vivo</strong>
+        </div>
+        <small>{messages.length} mensaje{messages.length === 1 ? "" : "s"}</small>
       </header>
       {messages.length > 0 ? (
         <div
-          className="player-call-chat__log"
-          data-testid={`call-announcement-${player.name}`}
+          className="table-call-chat__log"
+          data-testid="call-announcement-table"
           role="log"
           aria-live="polite"
           aria-relevant="additions"
@@ -1240,18 +1276,28 @@ function PlayerCallChat({ player, events, current, side }) {
         >
           {messages.map((event) => {
             const isResponse = event.type === "call_response";
+            const meta = participantMeta.get(event.player) || {
+              side: "left",
+              tone: "teal",
+            };
             return (
               <article
                 key={event.id}
-                className="player-call-chat__bubble"
+                className={
+                  `table-call-chat__bubble table-call-chat__bubble--${meta.side} ` +
+                  `table-call-chat__bubble--${meta.tone}`
+                }
                 data-testid={`call-chat-message-${event.id}`}
               >
-                <span>#{event.id}</span>
-                <strong>
+                <header>
+                  <strong>{event.player}</strong>
+                  <span>#{event.id}</span>
+                </header>
+                <p>
                   {isResponse
                     ? CALL_RESPONSE_LABELS[event.response] || event.response
                     : `¡${CALL_LABELS[event.call] || event.call}!`}
-                </strong>
+                </p>
                 <small>
                   {isResponse
                     ? `respondió a ${CALL_LABELS[event.call] || event.call}`
@@ -1260,20 +1306,28 @@ function PlayerCallChat({ player, events, current, side }) {
               </article>
             );
           })}
-          {isResponding && (
-            <p className="player-call-chat__typing" data-testid={`call-typing-${player.name}`}>
-              <Spinner /> pensando respuesta…
+          {respondingPlayer && (
+            <p
+              className={
+                "table-call-chat__typing " +
+                `table-call-chat__typing--${participantMeta.get(respondingPlayer)?.side || "left"}`
+              }
+              data-testid={`call-typing-${respondingPlayer}`}
+            >
+              <Spinner /> {respondingPlayer} está pensando…
             </p>
           )}
         </div>
       ) : (
         <p
-          className="player-call-chat__empty"
-          data-testid={isResponding
-            ? `call-typing-${player.name}`
-            : `no-call-status-${player.name}`}
+          className="table-call-chat__empty"
+          data-testid={respondingPlayer
+            ? `call-typing-${respondingPlayer}`
+            : "no-call-status-table"}
         >
-          {isResponding ? <><Spinner /> pensando respuesta…</> : "Todavía no cantó"}
+          {respondingPlayer
+            ? <><Spinner /> {respondingPlayer} está pensando…</>
+            : "Todavía no hubo cantos"}
         </p>
       )}
     </section>
@@ -1281,6 +1335,7 @@ function PlayerCallChat({ player, events, current, side }) {
 }
 
 function PlayedCardsSpot({ player, cards, receiving }) {
+  const isStacked = cards.length > 1;
   return (
     <div
       className="trick-seat flex min-w-0 flex-col items-center justify-center gap-2
@@ -1292,17 +1347,24 @@ function PlayedCardsSpot({ player, cards, receiving }) {
         {player.name}
       </span>
       <div
-        className="flex min-h-[68px] items-center justify-center gap-1.5"
+        className={`trick-card-stack ${isStacked ? "trick-card-stack--stacked" : "trick-card-stack--single"}`}
         aria-label={`Cartas jugadas por ${player.name}`}
+        data-testid={`played-stack-${player.name}`}
       >
         {cards.map((card, index) => (
-          <PlayedCard
+          <span
             key={`${card.palo || "tapada"}-${card.numero || index}-${index}`}
-            card={card}
-            playerName={player.name}
-            index={index}
-            receiving={receiving}
-          />
+            className="trick-card-stack__layer"
+            style={{ "--stack-index": index, "--stack-size": cards.length }}
+            data-testid={`played-card-layer-${player.name}-${index}`}
+          >
+            <PlayedCard
+              card={card}
+              playerName={player.name}
+              index={index}
+              receiving={receiving && index === cards.length - 1}
+            />
+          </span>
         ))}
         {cards.length === 0 && (
           <span
@@ -1338,15 +1400,19 @@ function PlayedCard({ card, playerName, index, receiving }) {
   );
 }
 
-function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
+function SpectatorTeam({ team, mano, turn, side }) {
   const displayName = teamDisplayName(team);
   return (
     <div
       className="spectator-team relative z-20 min-w-0"
       data-testid={`spectator-team-${team.name}`}
     >
-      <p className="mb-1 text-center text-[0.58rem] font-bold uppercase
-                    tracking-[0.22em] text-crema/45">
+      <p
+        className="spectator-team-label mb-1 truncate text-center text-[0.58rem] font-bold uppercase
+                   tracking-[0.22em] text-crema/45"
+        data-testid={`spectator-team-label-${team.name}`}
+        title={team.players.length === 1 ? `Jugador · ${displayName}` : displayName}
+      >
         {team.players.length === 1 ? `Jugador · ${displayName}` : displayName}
       </p>
       <div
@@ -1370,8 +1436,12 @@ function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
                   : "border-crema/10")
               }
             >
-            <header className="mb-2 flex flex-wrap items-center justify-center gap-1.5">
-              <h3 className="font-serif-display text-sm font-bold text-crema sm:text-base">
+            <header className="spectator-player-header flex min-w-0 flex-nowrap items-center justify-center gap-1.5">
+              <h3
+                className="spectator-player-name min-w-0 flex-1 truncate font-serif-display text-sm font-bold text-crema sm:text-base"
+                data-testid={`spectator-player-name-${player.name}`}
+                title={player.name}
+              >
                 {player.name}
               </h3>
               {mano === player.name && (
@@ -1388,7 +1458,9 @@ function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
                 </span>
               )}
             </header>
-            <AgentIdentity player={player} className="mb-2 text-center" />
+            <div className="spectator-player-agent">
+              <AgentIdentity player={player} className="text-center" />
+            </div>
             <div
               className="spectator-hand flex items-center justify-center gap-1.5 sm:gap-2"
               data-testid={`spectator-hand-${player.name}`}
@@ -1416,12 +1488,6 @@ function SpectatorTeam({ team, mano, turn, side, tableEvents, currentCall }) {
               )}
             </div>
             </article>
-            <PlayerCallChat
-              player={player}
-              events={tableEvents}
-              current={currentCall}
-              side={side}
-            />
           </div>
         ))}
       </div>
@@ -1445,10 +1511,10 @@ function AgentIdentity({ player, className = "" }) {
   const bluffLevel = player.agent.bluff_level;
   const bluffLabel = BLUFF_LABELS[bluffLevel] || bluffLevel;
   return (
-    <div className={`agent-meta mx-auto flex max-w-full flex-wrap items-center
-                    justify-center gap-1.5 ${className}`}>
+    <div className={`agent-meta mx-auto flex min-w-0 max-w-full flex-nowrap items-center
+                    justify-center gap-1.5 overflow-hidden ${className}`}>
       <p
-        className="agent-identity max-w-full truncate rounded-full border border-teal/30
+        className="agent-identity min-w-0 max-w-full flex-[1_1_auto] truncate rounded-full border border-teal/30
                    bg-teal/10 px-2 py-1 text-[0.66rem] font-bold tracking-[0.035em]
                    text-teal/90"
         data-testid={`agent-identity-${player.name}`}
@@ -1477,15 +1543,18 @@ function PlayerSlot({ player, isMano, isTurn, side, dataTestid,
     <div
       className={
         `slot ${side} ${isTurn ? "turno" : ""} ${isMano ? "slot--mano" : ""} ` +
-        `glass-panel min-w-[120px] rounded-xl ` +
+        `player-slot-panel glass-panel min-w-0 max-w-full overflow-hidden rounded-xl ` +
         `px-3 py-2 outline outline-2 outline-transparent ` +
         `transition-shadow duration-200 ${sideClass} ` +
         (isTurn ? "shadow-[0_0_14px_rgba(46,230,196,0.4)] outline-teal!" : "")
       }
       data-testid={dataTestid}
     >
-      <div className="nombre-jugador text-[0.95rem] text-crema">
-        {player.name}
+      <div
+        className="nombre-jugador flex min-w-0 items-center gap-1.5 text-[0.95rem] text-crema"
+        title={player.name}
+      >
+        <span className="min-w-0 flex-1 truncate font-semibold">{player.name}</span>
         {isMano && <span className="chip inline-block ml-1.5 rounded-full bg-oro/20 border border-oro/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-oro">MANO</span>}
         {isTurn && <span className="chip turno inline-block ml-1.5 rounded-full bg-teal/20 border border-teal/50 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-teal animate-pulso">JUGANDO</span>}
       </div>
