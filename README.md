@@ -9,6 +9,8 @@ proveedores y modelos, observar cómo toman decisiones los agentes y conservar e
 Git las especificaciones, evidencias y aprobaciones que dieron forma a cada
 feature.
 
+Desarrollado por [Modern Ash](https://modern-ash.com/).
+
 ## Lugar en el ecosistema Agora
 
 Truco Agora es la aplicación de referencia que hace visible el método en un
@@ -452,3 +454,12 @@ La especificación base partió del
 [reglamento de Truco Argentino](https://trucogame.com/pages/reglamento-de-truco-argentino)
 y las ampliaciones v2 contrastan variantes oficiales citadas en
 [docs/reglas-v2.md](docs/reglas-v2.md).
+
+## Licencia y autoría
+
+Este proyecto fue desarrollado por [Modern Ash](https://modern-ash.com/). Agora Core y Agora
+Studio, que forman parte del mismo ecosistema, se distribuyen bajo la [Apache License
+2.0](https://github.com/Modern-Ash/agora/blob/main/LICENSE), una licencia open source. Este
+repositorio de Truco Agora todavía no contiene un archivo `LICENSE`; por lo tanto, GitHub no le
+asigna una licencia y no debe asumirse permiso de reutilización hasta que se publique una licencia
+explícita.
