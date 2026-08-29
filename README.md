@@ -9,6 +9,38 @@ proveedores y modelos, observar cómo toman decisiones los agentes y conservar e
 Git las especificaciones, evidencias y aprobaciones que dieron forma a cada
 feature.
 
+Desarrollado por [Modern Ash](https://modern-ash.com/).
+
+## Lugar en el ecosistema Agora
+
+Truco Agora es la aplicación de referencia que hace visible el método en un
+dominio pequeño y jugable. No implementa otra versión de Agora: utiliza el
+protocolo y los registros del [Agora Core](https://github.com/Modern-Ash/agora),
+y puede inspeccionarse con la superficie visual de
+[Agora Studio](https://github.com/Modern-Ash/agora-studio).
+
+| Proyecto | Qué aporta a la demo |
+|---|---|
+| [Agora Core](https://github.com/Modern-Ash/agora) | Gobierna roles, swarms, work items, Method Packs, gates, evidencia y persistencia Git/Markdown |
+| [Agora Studio](https://github.com/Modern-Ash/agora-studio) | Permite explorar visualmente el estado, Activity, lifecycle, especificaciones, artefactos y aprobaciones |
+| [Truco Agora](https://github.com/Modern-Ash/truco-agora) | Ejecuta el producto: partida humana/LLM, descubrimiento de proveedores, fallback seguro, API, UI y pruebas |
+
+```mermaid
+flowchart LR
+    C[Agora Core\nreglas del proceso] --> R[Registros .agora/\nGit + Markdown]
+    C --> S[Agora Studio\ninspección visual]
+    R --> S
+    R --> T[Truco Agora\nproducto y laboratorio]
+    T --> L[Proveedores LLM locales\nCLI / Ollama]
+    T -. evidencia de runtime .-> R
+```
+
+El recorrido recomendado es: primero leer el [modelo de gobernanza de Core](https://github.com/Modern-Ash/agora#why-agora),
+después abrir [Studio](https://github.com/Modern-Ash/agora-studio) para ver cómo se presenta el
+estado y finalmente ejecutar este proyecto para observar agentes reales o `mock`. Las reglas de
+Truco siguen siendo responsabilidad del motor de este repositorio; Agora decide quién puede actuar,
+en qué fase y con qué evidencia, pero no reemplaza el dominio del juego.
+
 <p align="center">
   <img src="docs/images/agent-arena-match-evolution.png" width="100%" alt="Dos momentos de una partida de Truco Agora entre agentes OpenCode y Ollama: se muestran el marcador de cerillos, las manos, las cartas jugadas, la identidad del modelo, el nivel de picardía y el historial de cantos." />
 </p>
@@ -689,3 +721,9 @@ La especificación base partió del
 [reglamento de Truco Argentino](https://trucogame.com/pages/reglamento-de-truco-argentino)
 y las ampliaciones v2 contrastan variantes oficiales citadas en
 [docs/reglas-v2.md](docs/reglas-v2.md).
+
+## Licencia y autoría
+
+Este proyecto fue desarrollado por [Modern Ash](https://modern-ash.com/) y se distribuye bajo la
+[Apache License 2.0](LICENSE), una licencia open source. Agora Core y Agora Studio, que forman
+parte del mismo ecosistema, utilizan la misma licencia.
