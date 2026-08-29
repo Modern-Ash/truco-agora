@@ -34,6 +34,26 @@ feature.
 | Observabilidad | Logs estructurados, correlación por `X-Request-ID`, archivo rotativo y eventos de sesión, motor, proveedor y controladores sin registrar prompts ni credenciales |
 | Gobernanza | Swarms, work items, criterios, artefactos, evidencia y aprobaciones persistidos bajo `.agora/` |
 
+## Qué demuestra este repositorio
+
+Truco Agora es una demo ejecutable de un principio sencillo: un LLM puede
+participar en un proceso tradicional de software sin convertirse en una caja
+negra ni en la autoridad de las reglas. El dominio del juego funciona como un
+proyecto pequeño pero real, con una especificación, decisiones de diseño,
+implementación, pruebas y revisión humana.
+
+La misma corrida puede observarse desde tres ángulos:
+
+1. **Producto:** una partida de Truco con jugadores humanos, agentes o una
+   combinación de ambos.
+2. **Runtime:** el modelo, proveedor, decisión, tiempo de respuesta y fallback
+   visible para cada agente.
+3. **Proceso:** el work item de Agora, sus criterios, artefactos, sesiones,
+   evidencia, aprobaciones y commits.
+
+Esto permite enseñar la metodología con una aplicación que se puede iniciar en
+local, inspeccionar con una API y reproducir en CI usando el proveedor `mock`.
+
 ## Recorrido visual
 
 <p align="center">
@@ -87,6 +107,19 @@ como árbitro LLM experimental.
   necesita credenciales ni servicios externos.
 - Opcional: Agora CLI para inspeccionar y continuar el ciclo gobernado.
 
+Para instalar el CLI de Agora de forma aislada (sin agregarlo a las
+dependencias del juego):
+
+```bash
+uv tool install --force agora-framework
+agora doctor
+```
+
+El CLI se ejecuta desde la raíz del repositorio y detecta el `.agora/` local.
+Si se trabaja con una copia existente, `agora doctor` confirma la rama, el
+Method Pack, el runtime configurado y que los registros generados se pueden
+seguir en Git.
+
 ## Inicio rápido
 
 ```bash
@@ -107,6 +140,129 @@ npm run dev
 que informa la terminal, normalmente `http://localhost:5173`. Ambos procesos se
 ven en la misma consola con los prefijos `[api]` y `[web]`. Deténgalos con
 `Ctrl+C`.
+
+### Demo reproducible de la metodología
+
+Después de iniciar la aplicación, abre la URL de Vite y sigue este recorrido:
+
+```mermaid
+flowchart LR
+    A[Objetivo de producto] --> B[Swarm Agora]
+    B --> C[Work item]
+    C --> D[Spec y criterios]
+    D --> E[Plan]
+    E --> F[Implementación]
+    F --> G[Tests y evidencia]
+    G --> H[Revisión humana]
+    H --> I[Commit y PR]
+    I --> J[Partida observable]
+```
+
+El repositorio ya conserva ejemplos de todas estas fases en `.agora/`. Para
+inspeccionar el estado desde la raíz:
+
+```bash
+# Requiere tener instalado el CLI de Agora.
+agora doctor                         # preflight del proyecto y herramientas
+agora status                         # resumen del proyecto y atención pendiente
+agora next                           # siguiente transición y actor responsable
+agora activity list --limit 20      # ledger cronológico de eventos
+agora validate                       # integridad de los registros persistidos
+```
+
+Para reproducir una nueva feature con el mismo método `spec-driven`, el flujo
+mínimo es:
+
+```bash
+agora swarm create \
+  --id truco-demo-feature \
+  --objective "Add an observable, tested Truco feature" \
+  --method spec-driven
+
+agora swarm assign --swarm truco-demo-feature \
+  --role spec-owner --actor project:owner
+agora swarm assign --swarm truco-demo-feature \
+  --role developer --actor project:agent
+
+agora work create \
+  --swarm truco-demo-feature \
+  --id feature-work \
+  --title "Implement the feature" \
+  --description "Deliver the feature without bypassing the game engine" \
+  --by project:owner \
+  --criterion "behavior:The feature has an observable behavior" \
+  --criterion "safety:Existing legal actions remain enforced" \
+  --criterion "tests:Automated tests cover success and failure paths" \
+  --required-artifact spec \
+  --required-artifact implementation-plan \
+  --required-artifact verification-report
+
+agora next --swarm truco-demo-feature
+agora run --actor project:owner --swarm truco-demo-feature --work feature-work
+agora next --swarm truco-demo-feature
+agora run --actor project:agent --swarm truco-demo-feature --work feature-work
+agora activity list --swarm truco-demo-feature --work feature-work --limit 50
+```
+
+Cada `agora run` prepara una sesión gobernada para el actor asignado. El agente
+recibe el contexto operativo desde Agora, actúa sólo dentro de las capacidades
+de su rol y deja el resultado durable en `.agora/sessions/`. `agora next` es la
+fuente de verdad para saber qué paso corresponde: si falta una spec, una
+aprobación o evidencia, el comando lo muestra como bloqueo en vez de saltarlo.
+
+El cierre de un work requiere evidencia y revisión explícita:
+
+```bash
+agora approval add \
+  --swarm truco-demo-feature \
+  --work feature-work \
+  --role spec-owner \
+  --by project:owner \
+  --note "Reviewed behavior, evidence and regression results"
+
+agora work transition \
+  --swarm truco-demo-feature \
+  --work feature-work \
+  --to completed \
+  --by project:owner
+
+agora validate
+```
+
+El objetivo no es agregar burocracia a una partida: es hacer visible qué hizo
+el agente, qué quedó registrado y qué decisión sigue necesitando una persona.
+
+### Qué se construyó con ese proceso
+
+El historial de `.agora/swarms/` muestra una evolución incremental, no un único
+commit grande. Algunos work items completados que se pueden inspeccionar son:
+
+| Work / swarm | Resultado observable |
+|---|---|
+| `truco-agora` | Motor inicial, reglas de Truco, CLI y primera demo gobernada |
+| `truco-api` | API FastAPI stateful para crear partidas, consultar snapshots y enviar acciones |
+| `truco-webapp` y `truco-config-ui` | Lobby, mesa de juego, espectadores y configuración de asientos |
+| `truco-llm-providers` | Adaptadores pluggables para Claude, Codex, OpenCode, Ollama y `mock` |
+| `truco-llm-engine` | Motor LLM experimental aislado del motor determinista de reglas |
+| `004-truco-llm-autoplay` y `truco-step-mode` | Avance manual, autoplay y recuperación del flujo de espectador |
+| `033-truco-backend-observability` y `035-truco-unified-dev-logs` | Eventos estructurados, correlación por request y logs visibles en `npm run dev` |
+| `030-truco-opencode-live-models` y `017-truco-cli-catalog-fallback` | Catálogos locales y fallback de configuración cuando un CLI no responde |
+
+Cada carpeta contiene el registro del swarm, sus interacciones, artefactos,
+evidencia y eventos. Así, una persona puede pasar del README a un work item
+concreto y comprobar cómo una decisión de diseño terminó en código y pruebas.
+
+```mermaid
+gitGraph
+    commit id: "spec inicial"
+    branch feature
+    checkout feature
+    commit id: "API y motor"
+    commit id: "adaptadores LLM"
+    commit id: "UI y observabilidad"
+    checkout main
+    merge feature tag: "work aprobado"
+```
 
 > [!NOTE]
 > El supervisor espera el entorno virtual en `.venv/`. Si el puerto 8000 ya
@@ -147,11 +303,122 @@ ollama serve
 ollama pull llama3
 ```
 
-La UI consulta `GET /llm/models?provider=...` y muestra modelos descubiertos en
-el entorno. Si un proveedor falla, excede el timeout o devuelve una opción
-inválida, el adaptador intenta normalizar la respuesta una vez y luego aplica
-un fallback legal, reproducible y no sesgado por el orden. La mesa distingue
-si la decisión vino del modelo, fue reparada o requirió fallback.
+### Cómo se descubren los proveedores y modelos
+
+El descubrimiento ocurre **en la máquina donde corre FastAPI**, no en el
+navegador. Al montar el lobby, la UI consulta una vez cada proveedor disponible
+y conserva el catálogo recibido para los selectores de motor y de asiento.
+El endpoint es:
+
+```http
+GET /llm/models?provider=codex
+```
+
+Respuesta típica (el catálogo depende de la instalación local):
+
+```json
+{
+  "provider": "codex",
+  "available": true,
+  "models": ["gpt-5.5", "gpt-5.6-sol"],
+  "source": "cli",
+  "allow_custom_model": true,
+  "message": "2 modelo(s) detectado(s) por codex."
+}
+```
+
+El backend aplica un timeout de descubrimiento de ocho segundos, no imprime
+credenciales y registra sólo metadatos seguros (`provider`, `source`, cantidad
+de modelos y duración). El algoritmo por proveedor es deliberadamente
+explícito:
+
+| Proveedor | Comprobación local | Catálogo | Qué ve el usuario si falla |
+|---|---|---|---|
+| `mock` | Integrado, sin proceso externo | Ningún modelo; decisiones deterministas | Siempre disponible para tests y CI |
+| `claude` | `shutil.which("claude")` | Aliases estables `sonnet`, `opus`, `haiku`, `fable`; admite id manual | Se informa que el CLI no está en `PATH`; no se inventa disponibilidad de ejecución |
+| `codex` | `shutil.which("codex")` | Ejecuta `codex debug models`, lee JSON y descarta modelos ocultos | Catálogo vacío o diagnóstico seguro; se puede escribir un id manual |
+| `opencode` | `shutil.which("opencode")` | Ejecuta `opencode models --pure` y acepta líneas `provider/model` | Diagnóstico seguro; se habilita un identificador manual si no hay catálogo |
+| `ollama` | Consulta `http://localhost:11434/api/tags` | Tags instalados devueltos por el servicio local | El selector queda bloqueado hasta iniciar Ollama y tener al menos un tag |
+
+Puedes comprobar exactamente la misma superficie desde una terminal (en el
+mismo entorno desde el que arrancaste la API):
+
+```bash
+command -v claude   # ruta del CLI, si está instalado
+command -v codex
+command -v opencode
+
+codex debug models              # catálogo JSON que consume Agora
+opencode models --pure          # líneas provider/model que consume Agora
+curl -sS http://localhost:11434/api/tags  # tags locales de Ollama
+
+curl -sS 'http://127.0.0.1:8000/llm/models?provider=codex' | python -m json.tool
+```
+
+`command -v` y los comandos de catálogo sólo verifican disponibilidad y
+modelos visibles; no leen archivos de credenciales. La autenticación sigue
+siendo responsabilidad del CLI o servicio que el desarrollador ya usa.
+
+El flujo completo es:
+
+```mermaid
+sequenceDiagram
+    participant B as Navegador
+    participant A as FastAPI
+    participant P as PATH / servicio local
+    participant C as CLI o API del proveedor
+
+    B->>A: GET /llm/models?provider=codex
+    A->>P: localizar binario con shutil.which
+    P-->>A: ruta o no disponible
+    A->>C: codex debug models (timeout 8s)
+    C-->>A: JSON visible del catálogo
+    A-->>B: available, models, source, message
+    B->>A: POST /matches con provider + model
+    A->>A: validar catálogo y reglas antes de iniciar
+```
+
+Hay dos diferencias importantes entre proveedores:
+
+- Claude Code no ofrece un listado estable de modelos para este adaptador. Por
+  eso se comprueba el binario y se publican aliases conocidos, manteniendo un
+  campo manual para un nombre completo.
+- Ollama sí expone los modelos instalados. Truco Agora vuelve a comprobar ese
+  catálogo al crear la partida y rechaza un tag ausente, un servicio apagado o
+  un modelo vacío antes de iniciar el hilo de juego.
+
+Si la consulta del catálogo falla, la UI puede mostrar opciones conocidas para
+no romper la configuración, pero la creación y la ejecución siguen dependiendo
+de que el proveedor real esté instalado y autenticado. Esta separación evita
+confundir una sugerencia visual con una capacidad realmente disponible.
+
+### Decisiones, parseo y fallback
+
+La UI sólo selecciona proveedor y modelo. El backend construye un prompt con
+las opciones legales que ya produjo el motor y los adaptadores piden una única
+opción. Si la respuesta contiene ANSI, `<think>`, JSON o texto adicional, se
+normaliza y se intenta reparar una vez con `{"choice":"OPCION"}`. Si continúa
+siendo ambigua, hay timeout o el proceso no existe, se aplica un fallback legal
+reproducible mediante hash estable del contexto y de las opciones ordenadas.
+
+```mermaid
+flowchart TD
+    S[Estado legal del motor] --> Q[Opciones acotadas]
+    Q --> L[CLI o Ollama decide]
+    L --> V{Respuesta inequívoca}
+    V -- sí --> D[Decisión del modelo]
+    V -- no --> R[Un intento de reparación JSON]
+    R --> V2{¿Parseable?}
+    V2 -- sí --> D2[Decisión reparada]
+    V2 -- no --> F[Fallback legal estable]
+    L -. timeout / proveedor ausente .-> F
+```
+
+La mesa identifica la procedencia como `model`, `repaired` o `fallback`, junto
+con un motivo público como `provider-timeout`, `provider-unavailable` o
+`invalid-response`. Nunca expone prompts, respuestas privadas, claves ni el
+razonamiento interno del proveedor. El motor determinista sigue siendo la
+referencia para validar reglas y para pruebas reproducibles.
 
 La CLI acepta valores globales por argumento o entorno:
 
