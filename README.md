@@ -457,9 +457,6 @@ y las ampliaciones v2 contrastan variantes oficiales citadas en
 
 ## Licencia y autoría
 
-Este proyecto fue desarrollado por [Modern Ash](https://modern-ash.com/). Agora Core y Agora
-Studio, que forman parte del mismo ecosistema, se distribuyen bajo la [Apache License
-2.0](https://github.com/Modern-Ash/agora/blob/main/LICENSE), una licencia open source. Este
-repositorio de Truco Agora todavía no contiene un archivo `LICENSE`; por lo tanto, GitHub no le
-asigna una licencia y no debe asumirse permiso de reutilización hasta que se publique una licencia
-explícita.
+Este proyecto fue desarrollado por [Modern Ash](https://modern-ash.com/) y se distribuye bajo la
+[Apache License 2.0](LICENSE), una licencia open source. Agora Core y Agora Studio, que forman
+parte del mismo ecosistema, utilizan la misma licencia.
